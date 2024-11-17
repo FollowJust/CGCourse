@@ -19,9 +19,10 @@ namespace
 {
 
 constexpr std::array<GLfloat, 21u> vertices = {
-	0.0f, 0.707f, 1.f, 0.f, 0.f, 0.0f, 0.0f,
-	-0.5f, -0.5f, 0.f, 1.f, 0.f, 0.5f, 1.0f,
-	0.5f, -0.5f, 0.f, 0.f, 1.f, 1.0f, 0.0f,
+	/* Postion */
+	-1.f, -1.f,
+	3.f, -1.f,
+	-1.f, 3.f
 };
 constexpr std::array<GLuint, 3u> indices = {0, 1, 2};
 
@@ -53,7 +54,6 @@ Window::~Window()
 	{
 		// Free resources with context bounded.
 		const auto guard = bindContext();
-		texture_.reset();
 		program_.reset();
 	}
 }
@@ -62,9 +62,9 @@ void Window::onInit()
 {
 	// Configure shaders
 	program_ = std::make_unique<QOpenGLShaderProgram>(this);
-	program_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/diffuse.vs");
+	program_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/mandelbrot.vs");
 	program_->addShaderFromSourceFile(QOpenGLShader::Fragment,
-									  ":/Shaders/diffuse.fs");
+									  ":/Shaders/mandelbrot.fs");
 	program_->link();
 
 	// Create VAO object
@@ -83,25 +83,11 @@ void Window::onInit()
 	ibo_.setUsagePattern(QOpenGLBuffer::StaticDraw);
 	ibo_.allocate(indices.data(), static_cast<int>(indices.size() * sizeof(GLuint)));
 
-	texture_ = std::make_unique<QOpenGLTexture>(QImage(":/Textures/voronoi.png"));
-	texture_->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
-	texture_->setWrapMode(QOpenGLTexture::WrapMode::Repeat);
-
 	// Bind attributes
 	program_->bind();
 
 	program_->enableAttributeArray(0);
-	program_->setAttributeBuffer(0, GL_FLOAT, 0, 2, static_cast<int>(7 * sizeof(GLfloat)));
-
-	program_->enableAttributeArray(1);
-	program_->setAttributeBuffer(1, GL_FLOAT, static_cast<int>(2 * sizeof(GLfloat)), 3,
-								 static_cast<int>(7 * sizeof(GLfloat)));
-
-	program_->enableAttributeArray(2);
-	program_->setAttributeBuffer(2, GL_FLOAT, static_cast<int>(5 * sizeof(GLfloat)), 2,
-								 static_cast<int>(7 * sizeof(GLfloat)));
-
-	mvpUniform_ = program_->uniformLocation("mvp");
+	program_->setAttributeBuffer(0, GL_FLOAT, 0, 2, static_cast<int>(2 * sizeof(GLfloat)));
 
 	// Release all
 	program_->release();
@@ -134,20 +120,25 @@ void Window::onRender()
 
 	// Bind VAO and shader program
 	program_->bind();
+	const auto & screenResolution = QVector2D(width_, height_);
+	program_->setUniformValue("screenResolution", screenResolution);
+
+	const auto & center = QVector2D(-0.789136f, -0.150316f);
+	const float sizeX = 0.00239f;
+	const float sizeY = sizeX *screenResolution.y() / screenResolution.x();
+	const auto & sizes = QVector2D(sizeX, sizeY);
+
+	program_->setUniformValue("mandelbrotStart", (center - sizes / 2.0f));
+	program_->setUniformValue("mandelbrotSize", sizes);
+	program_->setUniformValue("mandelbrotIterations", 256);
+	program_->setUniformValue("mandelbrotSmoothing", true);
+
 	vao_.bind();
-
-	// Update uniform value
-	program_->setUniformValue(mvpUniform_, mvp);
-
-	// Activate texture unit and bind texture
-	glActiveTexture(GL_TEXTURE0);
-	texture_->bind();
 
 	// Draw
 	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
 
 	// Release VAO and shader program
-	texture_->release();
 	vao_.release();
 	program_->release();
 
@@ -162,6 +153,9 @@ void Window::onRender()
 
 void Window::onResize(const size_t width, const size_t height)
 {
+	height_ = height;
+	width_ = width;
+
 	// Configure viewport
 	glViewport(0, 0, static_cast<GLint>(width), static_cast<GLint>(height));
 

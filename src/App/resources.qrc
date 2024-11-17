@@ -6,7 +6,7 @@
         <file>Textures/voronoi.png</file>
     </qresource>
     <qresource prefix="/">
-        <file>Shaders/diffuse.fs</file>
-        <file>Shaders/diffuse.vs</file>
+        <file>Shaders/mandelbrot.fs</file>
+        <file>Shaders/mandelbrot.vs</file>
     </qresource>
 </RCC>

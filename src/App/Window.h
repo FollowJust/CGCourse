@@ -58,7 +58,6 @@ private:
 	QMatrix4x4 view_;
 	QMatrix4x4 projection_;
 
-	std::unique_ptr<QOpenGLTexture> texture_;
 	std::unique_ptr<QOpenGLShaderProgram> program_;
 
 	QElapsedTimer timer_;
@@ -69,4 +68,6 @@ private:
 	} ui_;
 
 	bool animated_ = true;
+
+	unsigned int height_, width_;
 };
