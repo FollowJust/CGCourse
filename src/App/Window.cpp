@@ -28,6 +28,13 @@ constexpr std::array<GLuint, 3u> indices = {0, 1, 2};
 
 }// namespace
 
+namespace MandelbrotParams
+{
+constexpr QVector2D center = QVector2D(-0.789136f, -0.150316f);
+constexpr float sizeX = 0.00239f;
+constexpr unsigned int iteration = 256;
+}// namespace MandelbrotParams
+
 Window::Window() noexcept
 {
 	const auto formatFPS = [](const auto value) {
@@ -112,26 +119,19 @@ void Window::onRender()
 	// Clear buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// Calculate MVP matrix
-	model_.setToIdentity();
-	model_.translate(0, 0, -2);
-	view_.setToIdentity();
-	const auto mvp = projection_ * view_ * model_;
-
 	// Bind VAO and shader program
 	program_->bind();
+
 	const auto & screenResolution = QVector2D(width_, height_);
+	const float aspectRatio = screenResolution.y() / screenResolution.x();
+	const auto & mandelbrotSize = QVector2D(MandelbrotParams::sizeX, MandelbrotParams::sizeX * aspectRatio);
+	const auto & mandelbrotStart = MandelbrotParams::center - mandelbrotSize / 2.0f;
+
+	program_->setUniformValue("orthoProjection", orthoProjection_);
 	program_->setUniformValue("screenResolution", screenResolution);
-
-	const auto & center = QVector2D(-0.789136f, -0.150316f);
-	const float sizeX = 0.00239f;
-	const float sizeY = sizeX *screenResolution.y() / screenResolution.x();
-	const auto & sizes = QVector2D(sizeX, sizeY);
-
-	program_->setUniformValue("mandelbrotStart", (center - sizes / 2.0f));
-	program_->setUniformValue("mandelbrotSize", sizes);
-	program_->setUniformValue("mandelbrotIterations", 256);
-	program_->setUniformValue("mandelbrotSmoothing", true);
+	program_->setUniformValue("mandelbrotStart", mandelbrotStart);
+	program_->setUniformValue("mandelbrotSize", mandelbrotSize);
+	program_->setUniformValue("mandelbrotIterations", MandelbrotParams::iteration);
 
 	vao_.bind();
 
@@ -144,28 +144,88 @@ void Window::onRender()
 
 	++frameCount_;
 
-	// Request redraw if animated
-	if (animated_)
-	{
-		update();
-	}
+	update();
 }
 
 void Window::onResize(const size_t width, const size_t height)
 {
-	height_ = height;
 	width_ = width;
+	height_ = height;
 
 	// Configure viewport
-	glViewport(0, 0, static_cast<GLint>(width), static_cast<GLint>(height));
+	glViewport(0, 0, static_cast<GLint>(width_), static_cast<GLint>(height_));
 
-	// Configure matrix
-	const auto aspect = static_cast<float>(width) / static_cast<float>(height);
-	const auto zNear = 0.1f;
-	const auto zFar = 100.0f;
-	const auto fov = 60.0f;
-	projection_.setToIdentity();
-	projection_.perspective(fov, aspect, zNear, zFar);
+	// Configure orthographic projection matrix
+	left_ = -1 * (float)width_ * 0.5f;
+	right_ = (float)width_ * 0.5f;
+	bottom_ = -1 * (float)height_ * 0.5f;
+	top_ = (float)height_ * 0.5f;
+
+	orthoProjection_.setToIdentity();
+	orthoProjection_.ortho(left_, right_, bottom_, top_, 0.1f, 100.0f);
+}
+
+void Window::mousePressEvent(QMouseEvent * e)
+{
+	mousePressPos_ = QVector2D(e->localPos());
+}
+
+void Window::mouseReleaseEvent(QMouseEvent * e)
+{
+	mousePressPos_ = QVector2D(0.0f, 0.0f);
+}
+
+void Window::mouseMoveEvent(QMouseEvent * e)
+{
+	QVector2D diff = QVector2D(e->localPos()) - mousePressPos_;
+	if (diff != QVector2D(0.0f, 0.0f))
+	{
+		orthoProjection_.translate({-1 * diff.x(), diff.y(), 0.0f});
+	}
+	mousePressPos_ = QVector2D(e->localPos());
+}
+
+void Window::wheelEvent(QWheelEvent * e)
+{
+	QPoint numDegrees = e->angleDelta() / 8;
+
+	if (numDegrees.y() == 0) {
+		return;
+	}
+
+	float t = 1.005f;
+	float zoom = 1.0f / t;
+	if (numDegrees.y() <= 0.0f) {
+		zoom = t;
+	}
+
+	const auto & screenResolution = QVector2D(width_, height_);
+
+	QVector2D wsPos = QVector2D(e->position());
+
+	QVector2D screenPos = (orthoProjection_ * QVector4D(wsPos, 0.0f, 1.0f)).toVector2D();
+
+	QMatrix4x4 scaledOrthoProjection = orthoProjection_;
+	scaledOrthoProjection.scale(zoom);
+
+	QVector2D screenPosScaled = (scaledOrthoProjection * QVector4D(wsPos, 0.0f, 1.0f)).toVector2D();
+
+
+	bool invertible = false;
+	QMatrix4x4 invOrthoProjection = orthoProjection_.inverted(&invertible);
+	assert(invertible);
+
+	QMatrix4x4 invScaledOrthoProjection = scaledOrthoProjection.inverted(&invertible);
+	assert(invertible);
+
+	QVector2D wsPosScaled = (invOrthoProjection * QVector4D(screenPosScaled, 0.0f, 1.0f)).toVector2D();
+	QVector2D wsPosScaled2 = (QVector4D(screenPos, 0.0f, 1.0f) * invScaledOrthoProjection).toVector2D();
+
+	QVector2D diff = wsPos - wsPosScaled2;
+	qDebug() << wsPos << '\t' << screenPos << '\t' << screenPosScaled << '\t' << wsPos << '\t' << wsPosScaled << '\t' << wsPosScaled2 << '\n';
+	//qDebug() << screenPos - screenPosScaled << '\t' << wsPos - wsPosScaled << '\t' << wsPos - wsPosScaled2 << '\n';
+	orthoProjection_.translate({diff.x(), diff.y(), 0.0f});
+	orthoProjection_.scale(zoom);
 }
 
 Window::PerfomanceMetricsGuard::PerfomanceMetricsGuard(std::function<void()> callback)

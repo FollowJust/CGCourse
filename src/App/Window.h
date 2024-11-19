@@ -25,6 +25,12 @@ public: // fgl::GLWidget
 	void onResize(size_t width, size_t height) override;
 
 private:
+	void mousePressEvent(QMouseEvent * e) override;
+	void mouseReleaseEvent(QMouseEvent * e) override;
+	void mouseMoveEvent(QMouseEvent * e) override;
+	void wheelEvent(QWheelEvent * e) override;
+
+private:
 	class PerfomanceMetricsGuard final
 	{
 	public:
@@ -48,15 +54,11 @@ signals:
 	void updateUI();
 
 private:
-	GLint mvpUniform_ = -1;
-
 	QOpenGLBuffer vbo_{QOpenGLBuffer::Type::VertexBuffer};
 	QOpenGLBuffer ibo_{QOpenGLBuffer::Type::IndexBuffer};
 	QOpenGLVertexArrayObject vao_;
 
-	QMatrix4x4 model_;
-	QMatrix4x4 view_;
-	QMatrix4x4 projection_;
+	QMatrix4x4 orthoProjection_;
 
 	std::unique_ptr<QOpenGLShaderProgram> program_;
 
@@ -67,7 +69,9 @@ private:
 		size_t fps = 0;
 	} ui_;
 
-	bool animated_ = true;
+private:
+	size_t width_, height_;
+	float left_, right_, bottom_, top_;
 
-	unsigned int height_, width_;
+	QVector2D mousePressPos_;
 };
