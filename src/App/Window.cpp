@@ -243,7 +243,7 @@ void Window::mousePressEvent(QMouseEvent * e)
 	mousePressPos_ = QVector2D(e->localPos());
 }
 
-void Window::mouseReleaseEvent(QMouseEvent * e)
+void Window::mouseReleaseEvent(QMouseEvent *)
 {
 	mousePressPos_ = QVector2D(0.0f, 0.0f);
 }
@@ -277,7 +277,6 @@ void Window::wheelEvent(QWheelEvent * e)
 	const QVector2D & mousePos = QVector2D(e->position().x(), height_ - e->position().y());
 
 	const QVector4D & wsPos = QVector4D(mousePos, 0.0f, 1.0f);
-	const QVector4D & screenPos = orthoProjection_ * wsPos;
 
 	QMatrix4x4 scaledOrthoProjection = orthoProjection_;
 	scaledOrthoProjection.scale(zoom);
