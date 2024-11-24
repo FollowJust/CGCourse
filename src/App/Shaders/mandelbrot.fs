@@ -8,7 +8,6 @@ uniform vec2 mandelbrotStart;
 uniform vec2 mandelbrotSize;
 uniform int mandelbrotIterations;
 
-
 in vec2 uv;
 
 out vec4 out_col;
@@ -26,12 +25,7 @@ vec3 getColor(in float value) {
 #define THRESHOLD_SQUARED (THRESHOLD * THRESHOLD)
 
 void main() {
-    vec4 test = orthoProjection * gl_FragCoord;
-    vec2 coords = test.xy * screenResolution;
-    // if (coords.x < -1 || coords.y < -1 || coords.x > 1 || coords.y > 1) {
-    //     out_col = vec4(1.0f, 1.0f, 1.0f, 1.0f);
-    //     return;
-    // }
+    vec2 coords = (orthoProjection * gl_FragCoord).xy * screenResolution;
     vec2 p0 = mandelbrotStart + (coords + vec2(0.5f)) * mandelbrotSize / screenResolution;
 
     float x = p0.x;
