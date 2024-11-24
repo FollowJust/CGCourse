@@ -1,11 +1,12 @@
 #include "Window.h"
 
-#include <QMouseEvent>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
-#include <QVBoxLayout>
 #include <QScreen>
+#include <QVBoxLayout>
+#include <qcursor.h>
 
 #include <array>
 
@@ -15,15 +16,64 @@
 
 #include <tinygltf/tiny_gltf.h>
 
+#include "Camera.h"
+
 namespace
 {
 
-constexpr std::array<GLfloat, 21u> vertices = {
-	0.0f, 0.707f, 1.f, 0.f, 0.f, 0.0f, 0.0f,
-	-0.5f, -0.5f, 0.f, 1.f, 0.f, 0.5f, 1.0f,
-	0.5f, -0.5f, 0.f, 0.f, 1.f, 1.0f, 0.0f,
-};
-constexpr std::array<GLuint, 3u> indices = {0, 1, 2};
+//constexpr std::array<GLfloat, 21u> vertices = {
+//	0.0f, 0.707f, 1.f, 0.f, 0.f, 0.0f, 0.0f,
+//	-0.5f, -0.5f, 0.f, 1.f, 0.f, 0.5f, 1.0f,
+//	0.5f, -0.5f, 0.f, 0.f, 1.f, 1.0f, 0.0f,
+//};
+constexpr std::array<GLuint, 30u> indices = {
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+	11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+	21, 22, 23, 24, 25, 26, 27, 28, 29};
+
+
+constexpr std::array<GLfloat, 180u> vertices = {
+	-0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+	0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
+	0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+	0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+	-0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
+	-0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+
+	-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+	0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+	0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+	0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+	-0.5f, 0.5f, 0.5f, 0.0f, 1.0f,
+	-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+
+	-0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+	-0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+	-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+	-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+	-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+	-0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+
+	0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+	0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+	0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+	0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+	0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+	0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+
+	-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+	0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
+	0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+	0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+	-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+	-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+
+	-0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
+	0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+	0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+	0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+	-0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
+	-0.5f, 0.5f, -0.5f, 0.0f, 1.0f};
 
 }// namespace
 
@@ -46,6 +96,8 @@ Window::Window() noexcept
 	connect(this, &Window::updateUI, [=] {
 		fps->setText(formatFPS(ui_.fps));
 	});
+
+	camera_ = new Camera();
 }
 
 Window::~Window()
@@ -91,15 +143,11 @@ void Window::onInit()
 	program_->bind();
 
 	program_->enableAttributeArray(0);
-	program_->setAttributeBuffer(0, GL_FLOAT, 0, 2, static_cast<int>(7 * sizeof(GLfloat)));
+	program_->setAttributeBuffer(0, GL_FLOAT, 0, 3, static_cast<int>(5 * sizeof(GLfloat)));
 
 	program_->enableAttributeArray(1);
-	program_->setAttributeBuffer(1, GL_FLOAT, static_cast<int>(2 * sizeof(GLfloat)), 3,
-								 static_cast<int>(7 * sizeof(GLfloat)));
-
-	program_->enableAttributeArray(2);
-	program_->setAttributeBuffer(2, GL_FLOAT, static_cast<int>(5 * sizeof(GLfloat)), 2,
-								 static_cast<int>(7 * sizeof(GLfloat)));
+	program_->setAttributeBuffer(1, GL_FLOAT, static_cast<int>(3 * sizeof(GLfloat)), 2,
+								 static_cast<int>(5 * sizeof(GLfloat)));
 
 	mvpUniform_ = program_->uniformLocation("mvp");
 
@@ -117,10 +165,17 @@ void Window::onInit()
 
 	// Clear all FBO buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+	// hide cursor and center it
+	//setCursor(Qt::BlankCursor);
 }
 
 void Window::onRender()
 {
+	// Update camera
+	camera_->update();
+
 	const auto guard = captureMetrics();
 
 	// Clear buffers
@@ -129,22 +184,23 @@ void Window::onRender()
 	// Calculate MVP matrix
 	model_.setToIdentity();
 	model_.translate(0, 0, -2);
-	view_.setToIdentity();
-	const auto mvp = projection_ * view_ * model_;
+	//view_.setToIdentity();
 
 	// Bind VAO and shader program
 	program_->bind();
 	vao_.bind();
 
 	// Update uniform value
-	program_->setUniformValue(mvpUniform_, mvp);
+	program_->setUniformValue("model", model_);
+	program_->setUniformValue("view", camera_->GetViewMatrix());
+	program_->setUniformValue("projection", projection_);
 
 	// Activate texture unit and bind texture
 	glActiveTexture(GL_TEXTURE0);
 	texture_->bind();
 
 	// Draw
-	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
+	glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, nullptr);
 
 	// Release VAO and shader program
 	texture_->release();
@@ -172,10 +228,111 @@ void Window::onResize(const size_t width, const size_t height)
 	const auto fov = 60.0f;
 	projection_.setToIdentity();
 	projection_.perspective(fov, aspect, zNear, zFar);
+
+	setMouseTracking(true);
+	QCursor::setPos(mapToGlobal(rect().center()));
+	prevMousePosition_ = QVector2D(width * 0.5f, height * 0.5f);
+}
+
+void Window::mousePressEvent(QMouseEvent * e)
+{
+	prevMousePosition_ = QVector2D(e->pos().x(), height() - e->pos().y());
+}
+
+void Window::mouseReleaseEvent(QMouseEvent * e)
+{
+}
+
+void Window::mouseMoveEvent(QMouseEvent * e)
+{
+	const QVector2D & currentMousePosition = QVector2D(e->pos().x(), height() - e->pos().y());
+
+	if (prevMousePosition_ == QVector2D(-1.0f, -1.0f)) {
+		prevMousePosition_ = currentMousePosition;
+		return;
+	}
+
+	QVector2D diff = currentMousePosition - prevMousePosition_;
+	prevMousePosition_ = currentMousePosition;
+
+	const float sensitivity = 0.7f;
+	diff *= sensitivity;
+
+	camera_->mouseMove(diff);
+}
+
+void Window::keyPressEvent(QKeyEvent * e)
+{
+	switch (e->key())
+	{
+		case Qt::Key_W: {
+			camera_->startMoving(Camera::Movement::FORWARD);
+			break;
+		}
+		case Qt::Key_S: {
+			camera_->startMoving(Camera::Movement::BACKWARD);
+			break;
+		}
+		case Qt::Key_A: {
+			camera_->startMoving(Camera::Movement::LEFT);
+			break;
+		}
+		case Qt::Key_D: {
+			camera_->startMoving(Camera::Movement::RIGHT);
+			break;
+		}
+
+		case Qt::Key_Control: {
+			if (!mouseGrabbed_)
+			{
+				grabMouse();
+				mouseGrabbed_ = true;
+				prevMousePosition_ = QVector2D(-1.0f, -1.0f);
+			}
+			else {
+				releaseMouse();
+				mouseGrabbed_ = false;
+				prevMousePosition_ = QVector2D(-1.0f, -1.0f);
+			}
+			break;
+		}
+
+		case Qt::Key_Space: {
+			camera_->reset();
+			break;
+		}
+		default:
+			break;
+	}
+}
+
+void Window::keyReleaseEvent(QKeyEvent * e)
+{
+	switch (e->key())
+	{
+		case Qt::Key_W: {
+			camera_->stopMoving(Camera::Movement::FORWARD);
+			break;
+		}
+		case Qt::Key_S: {
+			camera_->stopMoving(Camera::Movement::BACKWARD);
+			break;
+		}
+		case Qt::Key_A: {
+			camera_->stopMoving(Camera::Movement::LEFT);
+			break;
+		}
+		case Qt::Key_D: {
+			camera_->stopMoving(Camera::Movement::RIGHT);
+			break;
+		}
+		default:
+			break;
+	}
 }
 
 Window::PerfomanceMetricsGuard::PerfomanceMetricsGuard(std::function<void()> callback)
-	: callback_{ std::move(callback) }
+	: callback_{std::move(callback)}
 {
 }
 
@@ -198,6 +355,5 @@ auto Window::captureMetrics() -> PerfomanceMetricsGuard
 				frameCount_ = 0;
 				emit updateUI();
 			}
-		}
-	};
+		}};
 }

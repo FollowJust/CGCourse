@@ -1,4 +1,4 @@
-#pragma once
+//#pragma once
 
 #include <Base/GLWidget.hpp>
 
@@ -12,6 +12,8 @@
 #include <functional>
 #include <memory>
 
+class Camera;
+
 class Window final : public fgl::GLWidget
 {
 	Q_OBJECT
@@ -23,6 +25,13 @@ public: // fgl::GLWidget
 	void onInit() override;
 	void onRender() override;
 	void onResize(size_t width, size_t height) override;
+
+private:
+	void mousePressEvent(QMouseEvent * e) override;
+	void mouseReleaseEvent(QMouseEvent * e) override;
+	void mouseMoveEvent(QMouseEvent * e) override;
+	void keyPressEvent(QKeyEvent * e) override;
+	void keyReleaseEvent(QKeyEvent * e) override;
 
 private:
 	class PerfomanceMetricsGuard final
@@ -55,7 +64,6 @@ private:
 	QOpenGLVertexArrayObject vao_;
 
 	QMatrix4x4 model_;
-	QMatrix4x4 view_;
 	QMatrix4x4 projection_;
 
 	std::unique_ptr<QOpenGLTexture> texture_;
@@ -69,4 +77,9 @@ private:
 	} ui_;
 
 	bool animated_ = true;
+
+private:
+	Camera * camera_;
+	QVector2D prevMousePosition_ = QVector2D(-1.0f, -1.0f);
+	bool mouseGrabbed_ = false;
 };

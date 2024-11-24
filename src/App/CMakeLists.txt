@@ -2,6 +2,8 @@ set(SRCS
     main.cpp
     Window.cpp
     Window.h
+    Camera.cpp
+    Camera.h
 
     Shaders/diffuse.fs
     Shaders/diffuse.vs
