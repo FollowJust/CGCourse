@@ -1,11 +1,14 @@
 #include "Window.h"
 
-#include <QMouseEvent>
+#include <QDoubleSpinBox>
+#include <QGroupBox>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
-#include <QVBoxLayout>
 #include <QScreen>
+#include <QVBoxLayout>
+#include <QColorDialog>
 
 #include <array>
 
@@ -22,18 +25,58 @@ constexpr std::array<GLfloat, 21u> vertices = {
 	/* Postion */
 	-1.f, -1.f,
 	3.f, -1.f,
-	-1.f, 3.f
-};
+	-1.f, 3.f};
 constexpr std::array<GLuint, 3u> indices = {0, 1, 2};
 
 }// namespace
 
+// respectfully taken from GPGPU homeworks :)
 namespace MandelbrotParams
 {
+
 constexpr QVector2D center = QVector2D(-0.789136f, -0.150316f);
 constexpr float sizeX = 0.00239f;
 constexpr unsigned int iteration = 256;
+
 }// namespace MandelbrotParams
+
+QSpinBox * initIntParamWidget(QBoxLayout * parent, const QString & name)
+{
+	auto hBox = new QHBoxLayout();
+	hBox->setSpacing(0);
+	hBox->setAlignment(Qt::AlignLeft);
+
+	auto label = new QLabel(name);
+	label->setStyleSheet("QLabel { color : white; }");
+
+	auto spinBox = new QSpinBox();
+
+	hBox->addWidget(label);
+	hBox->addWidget(spinBox);
+	parent->addLayout(hBox);
+
+	return spinBox;
+}
+
+QDoubleSpinBox * initDoubleParamWidget(QBoxLayout * parent, const QString & name)
+{
+	auto hBox = new QHBoxLayout();
+	hBox->setSpacing(0);
+	hBox->setAlignment(Qt::AlignLeft);
+
+	auto label = new QLabel(name);
+	label->setStyleSheet("QLabel { color : white; }");
+
+	auto doubleSpinBox = new QDoubleSpinBox();
+	doubleSpinBox->setDecimals(3);
+	doubleSpinBox->setSingleStep(0.005f);
+
+	hBox->addWidget(label);
+	hBox->addWidget(doubleSpinBox);
+	parent->addLayout(hBox);
+
+	return doubleSpinBox;
+}
 
 Window::Window() noexcept
 {
@@ -46,6 +89,33 @@ Window::Window() noexcept
 
 	auto layout = new QVBoxLayout();
 	layout->addWidget(fps, 1);
+
+	zoomSpinBox_ = initDoubleParamWidget(layout, "Zoom Speed");
+	zoomSpinBox_->setRange(1.005f, 10.0f);
+
+	{
+		mandelbrotcenterXSpinBox_ = initDoubleParamWidget(layout, "Mandelbrot Center X");
+		mandelbrotcenterXSpinBox_->setDecimals(5);
+		mandelbrotcenterXSpinBox_->setSingleStep(0.0005f);
+		mandelbrotcenterXSpinBox_->setRange(-1000.0f, 1000.0f);
+		mandelbrotcenterXSpinBox_->setValue(MandelbrotParams::center.x());
+
+		mandelbrotcenterYSpinBox_ = initDoubleParamWidget(layout, "Mandelbrot Center Y");
+		mandelbrotcenterYSpinBox_->setDecimals(5);
+		mandelbrotcenterYSpinBox_->setSingleStep(0.0005f);
+		mandelbrotcenterYSpinBox_->setRange(-1000.0f, 1000.0f);
+		mandelbrotcenterYSpinBox_->setValue(MandelbrotParams::center.y());
+	}
+
+	mandelbrotSizeXSpinBox_ = initDoubleParamWidget(layout, "Mandelbrot Size X");
+	mandelbrotSizeXSpinBox_->setDecimals(5);
+	mandelbrotSizeXSpinBox_->setSingleStep(0.0005f);
+	mandelbrotSizeXSpinBox_->setRange(MandelbrotParams::sizeX, 1.0f);
+	mandelbrotSizeXSpinBox_->setValue(MandelbrotParams::sizeX);
+
+	mandelbrotIterationsSpinBox_ = initIntParamWidget(layout, "Mandelbrot Iterations");
+	mandelbrotIterationsSpinBox_->setMaximum(2048);
+	mandelbrotIterationsSpinBox_->setValue(MandelbrotParams::iteration);
 
 	setLayout(layout);
 
@@ -124,15 +194,18 @@ void Window::onRender()
 
 	const auto & screenResolution = QVector2D(width_, height_);
 	const float aspectRatio = screenResolution.y() / screenResolution.x();
-	const auto & mandelbrotSize = QVector2D(MandelbrotParams::sizeX, MandelbrotParams::sizeX * aspectRatio);
-	const auto & mandelbrotStart = MandelbrotParams::center - mandelbrotSize / 2.0f;
+	const float mandelbrotSizeX = mandelbrotSizeXSpinBox_->value();
+	const auto & mandelbrotSize = QVector2D(mandelbrotSizeX, mandelbrotSizeX * aspectRatio);
+
+	const auto & mandelbrotCenter = QVector2D(mandelbrotcenterXSpinBox_->value(), mandelbrotcenterYSpinBox_->value());
+	const auto & mandelbrotStart = mandelbrotCenter - mandelbrotSize / 2.0f;
 
 	program_->setUniformValue("orthoProjection", orthoProjection_);
 	program_->setUniformValue("screenResolution", screenResolution);
 	program_->setUniformValue("mandelbrotStart", mandelbrotStart);
 	program_->setUniformValue("mandelbrotSize", mandelbrotSize);
-	program_->setUniformValue("mandelbrotIterations", MandelbrotParams::iteration);
-
+	program_->setUniformValue("mandelbrotIterations", mandelbrotIterationsSpinBox_->value());
+	
 	vao_.bind();
 
 	// Draw
@@ -162,7 +235,7 @@ void Window::onResize(const size_t width, const size_t height)
 	top_ = (float)height_ * 0.5f;
 
 	orthoProjection_.setToIdentity();
-	orthoProjection_.ortho(left_, right_, bottom_, top_, 0.1f, 100.0f);
+	orthoProjection_.ortho(left_, right_, bottom_, top_, 0.0f, 100.0f);
 }
 
 void Window::mousePressEvent(QMouseEvent * e)
@@ -189,47 +262,42 @@ void Window::wheelEvent(QWheelEvent * e)
 {
 	QPoint numDegrees = e->angleDelta() / 8;
 
-	if (numDegrees.y() == 0) {
+	if (numDegrees.y() == 0)
+	{
 		return;
 	}
 
-	float t = 1.005f;
+	float t = zoomSpinBox_->value();
 	float zoom = 1.0f / t;
-	if (numDegrees.y() <= 0.0f) {
+	if (numDegrees.y() < 0.0f)
+	{
 		zoom = t;
 	}
 
-	const auto & screenResolution = QVector2D(width_, height_);
+	const QVector2D & mousePos = QVector2D(e->position().x(), height_ - e->position().y());
 
-	QVector2D wsPos = QVector2D(e->position());
-
-	QVector2D screenPos = (orthoProjection_ * QVector4D(wsPos, 0.0f, 1.0f)).toVector2D();
+	const QVector4D & wsPos = QVector4D(mousePos, 0.0f, 1.0f);
+	const QVector4D & screenPos = orthoProjection_ * wsPos;
 
 	QMatrix4x4 scaledOrthoProjection = orthoProjection_;
 	scaledOrthoProjection.scale(zoom);
 
-	QVector2D screenPosScaled = (scaledOrthoProjection * QVector4D(wsPos, 0.0f, 1.0f)).toVector2D();
-
+	const QVector4D & screenPosScaled = scaledOrthoProjection * wsPos;
 
 	bool invertible = false;
-	QMatrix4x4 invOrthoProjection = orthoProjection_.inverted(&invertible);
+	const QMatrix4x4 & invOrthoProjection = orthoProjection_.inverted(&invertible);
 	assert(invertible);
 
-	QMatrix4x4 invScaledOrthoProjection = scaledOrthoProjection.inverted(&invertible);
-	assert(invertible);
+	const QVector4D & scaledWsPos = invOrthoProjection * screenPosScaled;
 
-	QVector2D wsPosScaled = (invOrthoProjection * QVector4D(screenPosScaled, 0.0f, 1.0f)).toVector2D();
-	QVector2D wsPosScaled2 = (QVector4D(screenPos, 0.0f, 1.0f) * invScaledOrthoProjection).toVector2D();
+	const QVector2D & wsDiff = wsPos.toVector2D() - scaledWsPos.toVector2D();
 
-	QVector2D diff = wsPos - wsPosScaled2;
-	qDebug() << wsPos << '\t' << screenPos << '\t' << screenPosScaled << '\t' << wsPos << '\t' << wsPosScaled << '\t' << wsPosScaled2 << '\n';
-	//qDebug() << screenPos - screenPosScaled << '\t' << wsPos - wsPosScaled << '\t' << wsPos - wsPosScaled2 << '\n';
-	orthoProjection_.translate({diff.x(), diff.y(), 0.0f});
+	orthoProjection_.translate(wsDiff);
 	orthoProjection_.scale(zoom);
 }
 
 Window::PerfomanceMetricsGuard::PerfomanceMetricsGuard(std::function<void()> callback)
-	: callback_{ std::move(callback) }
+	: callback_{std::move(callback)}
 {
 }
 
@@ -252,6 +320,5 @@ auto Window::captureMetrics() -> PerfomanceMetricsGuard
 				frameCount_ = 0;
 				emit updateUI();
 			}
-		}
-	};
+		}};
 }

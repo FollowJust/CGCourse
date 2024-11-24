@@ -12,6 +12,10 @@
 #include <functional>
 #include <memory>
 
+class QSpinBox;
+class QDoubleSpinBox;
+class QColorDialog;
+
 class Window final : public fgl::GLWidget
 {
 	Q_OBJECT
@@ -19,7 +23,7 @@ public:
 	Window() noexcept;
 	~Window() override;
 
-public: // fgl::GLWidget
+public:// fgl::GLWidget
 	void onInit() override;
 	void onRender() override;
 	void onResize(size_t width, size_t height) override;
@@ -74,4 +78,11 @@ private:
 	float left_, right_, bottom_, top_;
 
 	QVector2D mousePressPos_;
+
+	QDoubleSpinBox * zoomSpinBox_;
+
+	QSpinBox * mandelbrotIterationsSpinBox_;
+	QDoubleSpinBox * mandelbrotSizeXSpinBox_;
+	QDoubleSpinBox * mandelbrotcenterXSpinBox_;
+	QDoubleSpinBox * mandelbrotcenterYSpinBox_;
 };
