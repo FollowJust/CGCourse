@@ -4,10 +4,13 @@ set(SRCS
     Window.h
     Camera.cpp
     Camera.h
+    Model.cpp
+    Model.h
 
     Shaders/diffuse.fs
     Shaders/diffuse.vs
     Textures/voronoi.png
+    Models/chess.glb
 
     resources.qrc
 )

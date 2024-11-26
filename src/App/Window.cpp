@@ -10,16 +10,13 @@
 
 #include <array>
 
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-
-#include <tinygltf/tiny_gltf.h>
-
 #include "Camera.h"
+#include "Model.h"
 
 namespace
 {
+	//todo fix that
+constexpr char modelPath[] = "chess.glb";
 
 //constexpr std::array<GLfloat, 21u> vertices = {
 //	0.0f, 0.707f, 1.f, 0.f, 0.f, 0.0f, 0.0f,
@@ -169,6 +166,9 @@ void Window::onInit()
 
 	// hide cursor and center it
 	//setCursor(Qt::BlankCursor);
+
+	Model mdl;
+	assert(mdl.load(modelPath));
 }
 
 void Window::onRender()
@@ -245,6 +245,8 @@ void Window::mouseReleaseEvent(QMouseEvent * e)
 
 void Window::mouseMoveEvent(QMouseEvent * e)
 {
+	// fix out of window move (out of focus)
+
 	const QVector2D & currentMousePosition = QVector2D(e->pos().x(), height() - e->pos().y());
 
 	if (prevMousePosition_ == QVector2D(-1.0f, -1.0f)) {
