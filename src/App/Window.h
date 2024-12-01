@@ -13,6 +13,8 @@
 #include <memory>
 
 class Camera;
+class Model;
+class Mesh;
 
 class Window final : public fgl::GLWidget
 {
@@ -57,17 +59,9 @@ signals:
 	void updateUI();
 
 private:
-	GLint mvpUniform_ = -1;
-
-	QOpenGLBuffer vbo_{QOpenGLBuffer::Type::VertexBuffer};
-	QOpenGLBuffer ibo_{QOpenGLBuffer::Type::IndexBuffer};
-	QOpenGLVertexArrayObject vao_;
 
 	QMatrix4x4 model_;
 	QMatrix4x4 projection_;
-
-	std::unique_ptr<QOpenGLTexture> texture_;
-	std::unique_ptr<QOpenGLShaderProgram> program_;
 
 	QElapsedTimer timer_;
 	size_t frameCount_ = 0;
@@ -79,7 +73,9 @@ private:
 	bool animated_ = true;
 
 private:
-	Camera * camera_;
+	std::unique_ptr<Camera> camera_;
+	//std::unique_ptr<Model> mdl_;
+	std::unique_ptr<Mesh> mesh_;
 	QVector2D prevMousePosition_ = QVector2D(-1.0f, -1.0f);
 	bool mouseGrabbed_ = false;
 };

@@ -18,60 +18,6 @@ namespace
 	//todo fix that
 constexpr char modelPath[] = "chess.glb";
 
-//constexpr std::array<GLfloat, 21u> vertices = {
-//	0.0f, 0.707f, 1.f, 0.f, 0.f, 0.0f, 0.0f,
-//	-0.5f, -0.5f, 0.f, 1.f, 0.f, 0.5f, 1.0f,
-//	0.5f, -0.5f, 0.f, 0.f, 1.f, 1.0f, 0.0f,
-//};
-constexpr std::array<GLuint, 30u> indices = {
-	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-	11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-	21, 22, 23, 24, 25, 26, 27, 28, 29};
-
-
-constexpr std::array<GLfloat, 180u> vertices = {
-	-0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
-	0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
-	0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-	0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-	-0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
-	-0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
-
-	-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-	0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-	0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
-	0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
-	-0.5f, 0.5f, 0.5f, 0.0f, 1.0f,
-	-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-
-	-0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-	-0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-	-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-	-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-	-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-	-0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-
-	0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-	0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-	0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-	0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-	0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-	0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-
-	-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-	0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
-	0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-	0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-	-0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-	-0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-
-	-0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
-	0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-	0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-	0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-	-0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
-	-0.5f, 0.5f, -0.5f, 0.0f, 1.0f};
-
 }// namespace
 
 Window::Window() noexcept
@@ -94,7 +40,7 @@ Window::Window() noexcept
 		fps->setText(formatFPS(ui_.fps));
 	});
 
-	camera_ = new Camera();
+	camera_ = std::make_unique<Camera>();
 }
 
 Window::~Window()
@@ -102,59 +48,13 @@ Window::~Window()
 	{
 		// Free resources with context bounded.
 		const auto guard = bindContext();
-		texture_.reset();
-		program_.reset();
 	}
 }
 
 void Window::onInit()
 {
-	// Configure shaders
-	program_ = std::make_unique<QOpenGLShaderProgram>(this);
-	program_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/diffuse.vs");
-	program_->addShaderFromSourceFile(QOpenGLShader::Fragment,
-									  ":/Shaders/diffuse.fs");
-	program_->link();
-
-	// Create VAO object
-	vao_.create();
-	vao_.bind();
-
-	// Create VBO
-	vbo_.create();
-	vbo_.bind();
-	vbo_.setUsagePattern(QOpenGLBuffer::StaticDraw);
-	vbo_.allocate(vertices.data(), static_cast<int>(vertices.size() * sizeof(GLfloat)));
-
-	// Create IBO
-	ibo_.create();
-	ibo_.bind();
-	ibo_.setUsagePattern(QOpenGLBuffer::StaticDraw);
-	ibo_.allocate(indices.data(), static_cast<int>(indices.size() * sizeof(GLuint)));
-
-	texture_ = std::make_unique<QOpenGLTexture>(QImage(":/Textures/voronoi.png"));
-	texture_->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
-	texture_->setWrapMode(QOpenGLTexture::WrapMode::Repeat);
-
-	// Bind attributes
-	program_->bind();
-
-	program_->enableAttributeArray(0);
-	program_->setAttributeBuffer(0, GL_FLOAT, 0, 3, static_cast<int>(5 * sizeof(GLfloat)));
-
-	program_->enableAttributeArray(1);
-	program_->setAttributeBuffer(1, GL_FLOAT, static_cast<int>(3 * sizeof(GLfloat)), 2,
-								 static_cast<int>(5 * sizeof(GLfloat)));
-
-	mvpUniform_ = program_->uniformLocation("mvp");
-
-	// Release all
-	program_->release();
-
-	vao_.release();
-
-	ibo_.release();
-	vbo_.release();
+	mesh_ = std::make_unique<Mesh>();
+	mesh_->init(Mesh::defaultVertices(), Mesh::defaultIndices());
 
 	// Еnable depth test and face culling
 	glEnable(GL_DEPTH_TEST);
@@ -162,13 +62,6 @@ void Window::onInit()
 
 	// Clear all FBO buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
-	// hide cursor and center it
-	//setCursor(Qt::BlankCursor);
-
-	Model mdl;
-	assert(mdl.load(modelPath));
 }
 
 void Window::onRender()
@@ -183,29 +76,8 @@ void Window::onRender()
 
 	// Calculate MVP matrix
 	model_.setToIdentity();
-	model_.translate(0, 0, -2);
-	//view_.setToIdentity();
 
-	// Bind VAO and shader program
-	program_->bind();
-	vao_.bind();
-
-	// Update uniform value
-	program_->setUniformValue("model", model_);
-	program_->setUniformValue("view", camera_->GetViewMatrix());
-	program_->setUniformValue("projection", projection_);
-
-	// Activate texture unit and bind texture
-	glActiveTexture(GL_TEXTURE0);
-	texture_->bind();
-
-	// Draw
-	glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, nullptr);
-
-	// Release VAO and shader program
-	texture_->release();
-	vao_.release();
-	program_->release();
+	mesh_->draw(model_, camera_->GetViewMatrix(), projection_);
 
 	++frameCount_;
 
