@@ -76,7 +76,7 @@ void Camera::reset()
 			 << view_;
 
 	movingFlags = 0;
-	speed_ = 0.005f;
+	speed_ = 0.01f;
 
 	yaw_ = -90.0f;
 	pitch_ = 0.0f;

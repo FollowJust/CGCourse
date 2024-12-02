@@ -16,7 +16,7 @@
 namespace
 {
 	//todo fix that
-constexpr char modelPath[] = "chess.glb";
+constexpr char modelPath[] = "Duck.glb";
 
 }// namespace
 
@@ -53,8 +53,9 @@ Window::~Window()
 
 void Window::onInit()
 {
-	mesh_ = std::make_unique<Mesh>();
-	mesh_->init(Mesh::defaultVertices(), Mesh::defaultIndices());
+	mdl_ = std::make_unique<Model>();
+	mdl_->load(modelPath);
+	mdl_->bind();
 
 	// Еnable depth test and face culling
 	glEnable(GL_DEPTH_TEST);
@@ -76,8 +77,9 @@ void Window::onRender()
 
 	// Calculate MVP matrix
 	model_.setToIdentity();
+	//model_.scale(0.01, 0.01, 0.01);
 
-	mesh_->draw(model_, camera_->GetViewMatrix(), projection_);
+	mdl_->draw(model_, camera_->GetViewMatrix(), projection_);
 
 	++frameCount_;
 

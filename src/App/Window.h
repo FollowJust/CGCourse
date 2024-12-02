@@ -74,8 +74,8 @@ private:
 
 private:
 	std::unique_ptr<Camera> camera_;
-	//std::unique_ptr<Model> mdl_;
-	std::unique_ptr<Mesh> mesh_;
+	
+	std::unique_ptr<Model> mdl_;
 	QVector2D prevMousePosition_ = QVector2D(-1.0f, -1.0f);
 	bool mouseGrabbed_ = false;
 };
