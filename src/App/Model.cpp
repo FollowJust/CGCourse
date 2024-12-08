@@ -1,9 +1,8 @@
 #include "Model.h"
 
-#include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
-#include <QOpenGLPixelTransferOptions>
-#include <string>
+#include <QOpenGLTexture>
+#include <QOpenGLBuffer>
 
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION

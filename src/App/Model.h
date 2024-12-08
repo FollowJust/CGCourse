@@ -1,16 +1,9 @@
 #pragma once
 
-//todo remove unnessecary
-#include <Base/GLWidget.hpp>
-
-#include <QElapsedTimer>
-#include <QOpenGLBuffer>
-#include <QOpenGLShaderProgram>
-#include <QOpenGLTexture>
+#include <QOpenGLFunctions>
 #include <QOpenGLVertexArrayObject>
-#include <QVector>
+#include <QMatrix4x4>
 
-#include <functional>
 #include <memory>
 
 namespace tinygltf
@@ -19,6 +12,10 @@ class Model;
 class Node;
 class Mesh;
 }// namespace tinygltf
+
+class QOpenGLShaderProgram;
+class QOpenGLTexture;
+class QOpenGLBuffer;
 
 class Model : public QOpenGLFunctions
 {
