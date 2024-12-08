@@ -10,7 +10,7 @@ set(SRCS
     Shaders/diffuse.fs
     Shaders/diffuse.vs
     Textures/voronoi.png
-    Models/chess.glb
+    Models/Duck.glb
 
     resources.qrc
 )

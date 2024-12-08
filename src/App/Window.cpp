@@ -77,7 +77,7 @@ void Window::onRender()
 
 	// Calculate MVP matrix
 	model_.setToIdentity();
-	//model_.scale(0.01, 0.01, 0.01);
+	model_.scale(0.01, 0.01, 0.01);
 
 	mdl_->draw(model_, camera_->GetViewMatrix(), projection_);
 
