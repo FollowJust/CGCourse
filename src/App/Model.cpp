@@ -22,6 +22,9 @@ Model::Model()
 	program_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/diffuse.vs");
 	program_->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/Shaders/diffuse.fs");
 	program_->link();
+
+	mModel_.setToIdentity();
+	mModel_.scale(0.01, 0.01, 0.01);
 }
 
 Model::~Model()
@@ -97,9 +100,6 @@ void Model::bind()
 
 void Model::draw(const QMatrix4x4 & mView, const QMatrix4x4 & mProjection)
 {
-	mModel_.setToIdentity();
-	mModel_.scale(0.01, 0.01, 0.01);
-
 	vao_.bind();
 	
 	program_->bind();
@@ -107,6 +107,7 @@ void Model::draw(const QMatrix4x4 & mView, const QMatrix4x4 & mProjection)
 	program_->setUniformValue("model", mModel_);
 	program_->setUniformValue("view", mView);
 	program_->setUniformValue("projection", mProjection);
+	program_->setUniformValue("MVP", mProjection * mView * mModel_);
 
 	if (texture_)
 	{
