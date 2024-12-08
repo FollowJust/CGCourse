@@ -16,6 +16,9 @@ class Camera;
 class Model;
 class Mesh;
 
+class QDoubleSpinBox;
+class QCheckBox;
+
 class Window final : public fgl::GLWidget
 {
 	Q_OBJECT
@@ -72,9 +75,27 @@ private:
 	bool animated_ = true;
 
 private:
+	size_t totalFramesCount = 0;
+
+private:
 	std::unique_ptr<Camera> camera_;
 	
 	std::unique_ptr<Model> model_;
 	QVector2D prevMousePosition_ = QVector2D(-1.0f, -1.0f);
 	bool mouseGrabbed_ = false;
+
+private:
+	QDoubleSpinBox * modelScaleSpinBox_;
+	QDoubleSpinBox * flySpeedSpinBox_;
+
+	QCheckBox * morphCheckBox_;
+	QDoubleSpinBox * morphSpeedSpinBox_;
+	QDoubleSpinBox * morphCoefficientSpinBox_;
+	QDoubleSpinBox * morphClampValueSpinBox_;
+
+	QDoubleSpinBox * directionalLightAmbientCoefficientSpinBox_;
+	QDoubleSpinBox * directionalLightSpecularCoefficientSpinBox_;
+
+	QDoubleSpinBox * spotLightAmbientCoefficientSpinBox_;
+	QDoubleSpinBox * spotLightSpecularCoefficientSpinBox_;
 };

@@ -36,9 +36,12 @@ public:
 	void stopMoving(const Movement & direction);
 	void reset();
 
-
+	QVector3D GetViewPosition() const { return position_; };
+	QVector3D GetViewDirection() const { return front_; };
 	QMatrix4x4 GetViewMatrix() const { return view_; };
 	QMatrix4x4 GetProjectionMatrix() const { return projection_; };
+
+	void setSpeed(const float speed) { speed_ = speed; };
 
 private:
 	void updateCameraVectors();

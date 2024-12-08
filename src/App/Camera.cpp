@@ -3,6 +3,7 @@
 #include <qmath.h>
 
 Camera::Camera()
+	: speed_(0.01f)
 {
 	reset();
 }
@@ -82,11 +83,8 @@ void Camera::reset()
 
 	view_.setToIdentity();
 	view_.lookAt(position_, position_ + front_, up_);
-	qDebug() << "Camera View:\n"
-			 << view_;
 
 	movingFlags = 0;
-	speed_ = 0.01f;
 
 	yaw_ = -90.0f;
 	pitch_ = 0.0f;

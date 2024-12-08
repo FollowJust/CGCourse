@@ -1,12 +1,16 @@
 #include "Window.h"
 
+#include <QCheckBox>
+#include <QDoubleSpinBox>
 #include <QLabel>
 #include <QMouseEvent>
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
 #include <QScreen>
+#include <QSpinBox>
 #include <QVBoxLayout>
 #include <qcursor.h>
+#include <qmath.h>
 
 #include <array>
 
@@ -20,6 +24,62 @@ constexpr char modelPath[] = "Duck.glb";
 
 }// namespace
 
+QSpinBox * initIntParamWidget(QBoxLayout * parent, const QString & name)
+{
+	auto hBox = new QHBoxLayout();
+	hBox->setSpacing(0);
+	hBox->setAlignment(Qt::AlignLeft);
+
+	auto label = new QLabel(name);
+	label->setStyleSheet("QLabel { color : white; }");
+
+	auto spinBox = new QSpinBox();
+
+	hBox->addWidget(label);
+	hBox->addWidget(spinBox);
+	parent->addLayout(hBox);
+
+	return spinBox;
+}
+
+QDoubleSpinBox * initDoubleParamWidget(QBoxLayout * parent, const QString & name)
+{
+	auto hBox = new QHBoxLayout();
+	hBox->setSpacing(0);
+	hBox->setAlignment(Qt::AlignLeft);
+
+	auto label = new QLabel(name);
+	label->setStyleSheet("QLabel { color : white; }");
+
+	auto doubleSpinBox = new QDoubleSpinBox();
+	doubleSpinBox->setDecimals(3);
+	doubleSpinBox->setSingleStep(0.005f);
+
+	hBox->addWidget(label);
+	hBox->addWidget(doubleSpinBox);
+	parent->addLayout(hBox);
+
+	return doubleSpinBox;
+}
+
+QCheckBox * initCheckBoxParamWidget(QBoxLayout * parent, const QString & name)
+{
+	auto hBox = new QHBoxLayout();
+	hBox->setSpacing(0);
+	hBox->setAlignment(Qt::AlignLeft);
+
+	auto label = new QLabel(name);
+	label->setStyleSheet("QLabel { color : white; }");
+
+	auto checkBox = new QCheckBox();
+
+	hBox->addWidget(label);
+	hBox->addWidget(checkBox);
+	parent->addLayout(hBox);
+
+	return checkBox;
+}
+
 Window::Window() noexcept
 {
 	const auto formatFPS = [](const auto value) {
@@ -31,6 +91,73 @@ Window::Window() noexcept
 
 	auto layout = new QVBoxLayout();
 	layout->addWidget(fps, 1);
+
+	modelScaleSpinBox_ = initDoubleParamWidget(layout, "Model Scale");
+	modelScaleSpinBox_->setDecimals(3);
+	modelScaleSpinBox_->setSingleStep(0.01f);
+	modelScaleSpinBox_->setRange(0.001f, 100.0f);
+	modelScaleSpinBox_->setValue(1.0f);
+	modelScaleSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
+	flySpeedSpinBox_ = initDoubleParamWidget(layout, "Fly Speed");
+	flySpeedSpinBox_->setDecimals(2);
+	flySpeedSpinBox_->setSingleStep(0.1f);
+	flySpeedSpinBox_->setRange(0.01f, 1.0f);
+	flySpeedSpinBox_->setValue(0.01f);
+	flySpeedSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
+
+	morphCheckBox_ = initCheckBoxParamWidget(layout, "Morph");
+	morphCheckBox_->setChecked(false);
+
+	morphSpeedSpinBox_ = initDoubleParamWidget(layout, "Morph Speed");
+	morphSpeedSpinBox_->setDecimals(2);
+	morphSpeedSpinBox_->setSingleStep(0.1f);
+	morphSpeedSpinBox_->setRange(0.01f, 10.0f);
+	morphSpeedSpinBox_->setValue(1.0f);
+	morphSpeedSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
+	morphCoefficientSpinBox_ = initDoubleParamWidget(layout, "Morph Coef");
+	morphCoefficientSpinBox_->setDecimals(2);
+	morphCoefficientSpinBox_->setSingleStep(0.1f);
+	morphCoefficientSpinBox_->setRange(0.01f, 10.0f);
+	morphCoefficientSpinBox_->setValue(1.0f);
+	morphCoefficientSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
+	morphClampValueSpinBox_ = initDoubleParamWidget(layout, "Morph Clamp Value");
+	morphClampValueSpinBox_->setDecimals(2);
+	morphClampValueSpinBox_->setSingleStep(0.1f);
+	morphClampValueSpinBox_->setRange(0.01f, 10.0f);
+	morphClampValueSpinBox_->setValue(1.0f);
+	morphClampValueSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
+	directionalLightAmbientCoefficientSpinBox_ = initDoubleParamWidget(layout, "DirLight Ambient");
+	directionalLightAmbientCoefficientSpinBox_->setDecimals(2);
+	directionalLightAmbientCoefficientSpinBox_->setSingleStep(0.1f);
+	directionalLightAmbientCoefficientSpinBox_->setRange(0.0f, 10.0f);
+	directionalLightAmbientCoefficientSpinBox_->setValue(0.2f);
+	directionalLightAmbientCoefficientSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
+	directionalLightSpecularCoefficientSpinBox_ = initDoubleParamWidget(layout, "DirLight Specular");
+	directionalLightSpecularCoefficientSpinBox_->setDecimals(2);
+	directionalLightSpecularCoefficientSpinBox_->setSingleStep(0.1f);
+	directionalLightSpecularCoefficientSpinBox_->setRange(0.0f, 10.0f);
+	directionalLightSpecularCoefficientSpinBox_->setValue(0.7f);
+	directionalLightSpecularCoefficientSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
+	spotLightAmbientCoefficientSpinBox_ = initDoubleParamWidget(layout, "SpotLight Ambient");
+	spotLightAmbientCoefficientSpinBox_->setDecimals(2);
+	spotLightAmbientCoefficientSpinBox_->setSingleStep(0.1f);
+	spotLightAmbientCoefficientSpinBox_->setRange(0.0f, 10.0f);
+	spotLightAmbientCoefficientSpinBox_->setValue(0.3f);
+	spotLightAmbientCoefficientSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
+	spotLightSpecularCoefficientSpinBox_ = initDoubleParamWidget(layout, "SpotLight Specular");
+	spotLightSpecularCoefficientSpinBox_->setDecimals(2);
+	spotLightSpecularCoefficientSpinBox_->setSingleStep(0.1f);
+	spotLightSpecularCoefficientSpinBox_->setRange(0.0f, 10.0f);
+	spotLightSpecularCoefficientSpinBox_->setValue(0.5f);
+	spotLightSpecularCoefficientSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
 
 	setLayout(layout);
 
@@ -68,6 +195,7 @@ void Window::onInit()
 void Window::onRender()
 {
 	// Update camera
+	camera_->setSpeed(flySpeedSpinBox_->value());
 	camera_->update();
 
 	const auto guard = captureMetrics();
@@ -75,9 +203,48 @@ void Window::onRender()
 	// Clear buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	model_->draw(camera_->GetViewMatrix(), projection_);
+	model_->setScale(modelScaleSpinBox_->value());
+
+	model_->bindProgram();
+
+	if (morphCheckBox_->isChecked())
+	{
+		model_->setUniformValue("morphingMixValue", abs(qCos(totalFramesCount / 100.0f * morphSpeedSpinBox_->value())));
+	}
+	else
+	{
+		model_->setUniformValue("morphingMixValue", 0);
+	}
+	model_->setUniformValue("morphCoef", morphCoefficientSpinBox_->value());
+	model_->setUniformValue("morphClampValue", morphClampValueSpinBox_->value());
+
+	model_->setUniformValue("view", camera_->GetViewMatrix());
+	model_->setUniformValue("projection", projection_);
+
+	model_->setUniformValue("viewPos", camera_->GetViewPosition());
+
+	// Directional Light
+	model_->setUniformValue("directionalLight.direction", QVector3D(0.0f, -1.0f, 0.0f));
+
+	model_->setUniformValue("directionalLight.color", QVector3D(0.3f, 0.3f, 0.32f));
+	model_->setUniformValue("directionalLight.ambientStrength", directionalLightAmbientCoefficientSpinBox_->value());
+	model_->setUniformValue("directionalLight.specularStrength", directionalLightSpecularCoefficientSpinBox_->value());
+
+	// Spot Light
+	model_->setUniformValue("spotLight.position", camera_->GetViewPosition());
+	model_->setUniformValue("spotLight.direction", camera_->GetViewDirection());
+	model_->setUniformValue("spotLight.cutOff", qCos(qDegreesToRadians(2.5f)));
+	model_->setUniformValue("spotLight.outerCutOff", qCos(qDegreesToRadians(10.0f)));
+
+	model_->setUniformValue("spotLight.color", QVector3D(0.8f, 0.0f, 0.0f));
+	model_->setUniformValue("spotLight.ambientStrength", spotLightAmbientCoefficientSpinBox_->value());
+	model_->setUniformValue("spotLight.specularStrength", spotLightSpecularCoefficientSpinBox_->value());
+
+
+	model_->draw();
 
 	++frameCount_;
+	++totalFramesCount;
 
 	// Request redraw if animated
 	if (animated_)
@@ -127,12 +294,12 @@ void Window::mouseMoveEvent(QMouseEvent * e)
 	camera_->mouseMove(diff);
 }
 
-void Window::enterEvent(QEvent * e)
-{	
+void Window::enterEvent(QEvent *)
+{
 	prevMousePosition_ = QVector2D(-1.0f, -1.0f);
 }
 
-void Window::leaveEvent(QEvent * e)
+void Window::leaveEvent(QEvent *)
 {
 	prevMousePosition_ = QVector2D(-1.0f, -1.0f);
 }

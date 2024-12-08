@@ -23,7 +23,7 @@ Model::Model()
 	program_->link();
 
 	mModel_.setToIdentity();
-	mModel_.scale(0.01, 0.01, 0.01);
+	mModel_.scale(0.01f, 0.01f, 0.01f);
 }
 
 Model::~Model()
@@ -97,16 +97,11 @@ void Model::bind()
 	}
 }
 
-void Model::draw(const QMatrix4x4 & mView, const QMatrix4x4 & mProjection)
+void Model::draw()
 {
 	vao_.bind();
-	
-	program_->bind();
 
 	program_->setUniformValue("model", mModel_);
-	program_->setUniformValue("view", mView);
-	program_->setUniformValue("projection", mProjection);
-	program_->setUniformValue("MVP", mProjection * mView * mModel_);
 
 	if (texture_)
 	{
@@ -125,6 +120,44 @@ void Model::draw(const QMatrix4x4 & mView, const QMatrix4x4 & mProjection)
 	}
 	vao_.release();
 	program_->release();
+}
+
+void Model::setScale(const float scale)
+{
+	mModel_.setToIdentity();
+	mModel_.scale(scale, scale, scale);
+}
+
+void Model::bindProgram()
+{
+	if (program_)
+	{
+		program_->bind();
+	}
+}
+
+void Model::setUniformValue(const QString & uniformName, const float value)
+{
+	if (program_)
+	{
+		program_->setUniformValue(uniformName.toStdString().c_str(), value);
+	}
+}
+
+void Model::setUniformValue(const QString & uniformName, const QVector3D & value)
+{
+	if (program_)
+	{
+		program_->setUniformValue(uniformName.toStdString().c_str(), value);
+	}
+}
+
+void Model::setUniformValue(const QString & uniformName, const QMatrix4x4 & value)
+{
+	if (program_)
+	{
+		program_->setUniformValue(uniformName.toStdString().c_str(), value);
+	}
 }
 
 void Model::bindModelNodes(const tinygltf::Node & node)
@@ -172,8 +205,8 @@ void Model::bindMesh(const tinygltf::Mesh & mesh)
 			}
 		}
 
-		vbos_[i] = std::move(QOpenGLBuffer(bufferType));
-		QOpenGLBuffer & vbo = vbos_[i];
+		vbos_[static_cast<int>(i)] = std::move(QOpenGLBuffer(bufferType));
+		QOpenGLBuffer & vbo = vbos_[static_cast<int>(i)];
 		vbo.create();
 		vbo.bind();
 		vbo.setUsagePattern(QOpenGLBuffer::UsagePattern::StaticDraw);
@@ -181,7 +214,7 @@ void Model::bindMesh(const tinygltf::Mesh & mesh)
 		qDebug() << "buffer.data.size = " << buffer.data.size()
 				 << ", bufferview.byteOffset = " << bufferView.byteOffset;
 
-		vbo.allocate(&buffer.data.at(0) + bufferView.byteOffset, bufferView.byteLength);
+		vbo.allocate(&buffer.data.at(0) + bufferView.byteOffset, static_cast<int>(bufferView.byteLength));
 	}
 
 	program_->bind();
@@ -297,7 +330,7 @@ void Model::drawMesh(const tinygltf::Mesh & mesh)
 		QOpenGLBuffer & vbo = vbos_[indexAccessor.bufferView];
 		vbo.bind();
 
-		glDrawElements(primitive.mode, indexAccessor.count,
+		glDrawElements(primitive.mode, static_cast<GLsizei>(indexAccessor.count),
 					   indexAccessor.componentType,
 					   BUFFER_OFFSET(indexAccessor.byteOffset));
 	}

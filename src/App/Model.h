@@ -1,8 +1,8 @@
 #pragma once
 
+#include <QMatrix4x4>
 #include <QOpenGLFunctions>
 #include <QOpenGLVertexArrayObject>
-#include <QMatrix4x4>
 
 #include <memory>
 
@@ -24,9 +24,16 @@ public:
 	~Model();
 	bool load(const QString & path);
 	void bind();
-	void draw(const QMatrix4x4 & mView, const QMatrix4x4 & mProjection);
+	void draw();
 
 	bool loaded() const { return model_ != nullptr; };
+
+	void setScale(const float scale);
+
+	void bindProgram();
+	void setUniformValue(const QString & uniformName, const float value);
+	void setUniformValue(const QString & uniformName, const QVector3D & value);
+	void setUniformValue(const QString & uniformName, const QMatrix4x4 & value);
 
 private:
 	void bindModelNodes(const tinygltf::Node & node);

@@ -6,16 +6,23 @@ layout (location = 2) in vec2 vertexUV;
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
-uniform mat4 MVP;
 
-out vec3 pos;
-out vec3 normal;
-out vec2 uv;
+uniform float morphingMixValue;
+uniform float morphCoef;
+uniform float morphClampValue;
+
+out vec3 Pos;
+out vec3 Normal;
+out vec2 UV;
 
 void main()
 {
-	gl_Position = MVP * vec4(vertexPos, 1.0f);
-	pos = vertexPos;
-	normal = (normalize(vertexNormal) + 1.0f) / 2.0f;
-	uv = vec2(vertexUV.x, vertexUV.y);
+	Pos = vec3(model * vec4(vertexPos, 1.0f));
+
+	vec3 morphPos = Pos * morphCoef / length(Pos);
+	Pos = mix(Pos, clamp(morphPos, -1 * morphClampValue, morphClampValue), morphingMixValue);
+
+	gl_Position = projection * view * vec4(Pos, 1.0f);
+	Normal = normalize(mat3(model) * vertexNormal);
+	UV = vertexUV;
 }

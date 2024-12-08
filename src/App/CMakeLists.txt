@@ -17,6 +17,10 @@ set(SRCS
 
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 
+# Copy model file to binary directory
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/Models/Duck.glb
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 add_executable(demo-app ${SRCS})
 
 target_link_libraries(demo-app
