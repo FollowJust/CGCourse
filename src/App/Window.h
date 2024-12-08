@@ -60,8 +60,6 @@ signals:
 	void updateUI();
 
 private:
-
-	QMatrix4x4 model_;
 	QMatrix4x4 projection_;
 
 	QElapsedTimer timer_;
@@ -76,7 +74,7 @@ private:
 private:
 	std::unique_ptr<Camera> camera_;
 	
-	std::unique_ptr<Model> mdl_;
+	std::unique_ptr<Model> model_;
 	QVector2D prevMousePosition_ = QVector2D(-1.0f, -1.0f);
 	bool mouseGrabbed_ = false;
 };

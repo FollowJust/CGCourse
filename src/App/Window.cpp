@@ -53,9 +53,9 @@ Window::~Window()
 
 void Window::onInit()
 {
-	mdl_ = std::make_unique<Model>();
-	mdl_->load(modelPath);
-	mdl_->bind();
+	model_ = std::make_unique<Model>();
+	model_->load(modelPath);
+	model_->bind();
 
 	// Еnable depth test and face culling
 	glEnable(GL_DEPTH_TEST);
@@ -75,11 +75,7 @@ void Window::onRender()
 	// Clear buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// Calculate MVP matrix
-	model_.setToIdentity();
-	model_.scale(0.01, 0.01, 0.01);
-
-	mdl_->draw(model_, camera_->GetViewMatrix(), projection_);
+	model_->draw(camera_->GetViewMatrix(), projection_);
 
 	++frameCount_;
 

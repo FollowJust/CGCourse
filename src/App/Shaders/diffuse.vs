@@ -16,6 +16,6 @@ void main()
 	mat4 MVP = projection * view * model;
 	gl_Position = MVP * vec4(vertexPos, 1.0f);
 	pos = vertexPos;
-	normal = normalize(vertexNormal);
+	normal = (normalize(mat3(model) * vertexNormal) + 1.0f) / 2.0f;
 	uv = vec2(vertexUV.x, vertexUV.y);
 }

@@ -95,31 +95,33 @@ void Model::bind()
 	}
 }
 
-void Model::draw(const QMatrix4x4 & mModel, const QMatrix4x4 & mView, const QMatrix4x4 & mProjection)
+void Model::draw(const QMatrix4x4 & mView, const QMatrix4x4 & mProjection)
 {
+	mModel_.setToIdentity();
+	mModel_.scale(0.01, 0.01, 0.01);
+
 	vao_.bind();
 	
 	program_->bind();
 
-	program_->setUniformValue("model", mModel);
+	program_->setUniformValue("model", mModel_);
 	program_->setUniformValue("view", mView);
 	program_->setUniformValue("projection", mProjection);
 
 	if (texture_)
 	{
-		glActiveTexture(GL_TEXTURE0);
-		texture_->bind();
+		texture_->bind(GL_TEXTURE0);
 	}
 
 	const tinygltf::Scene & scene = model_->scenes[model_->defaultScene];
 	for (size_t i = 0; i < scene.nodes.size(); ++i)
 	{
-		drawModelNodes(model_->nodes[scene.nodes[i]], mModel, mView, mProjection);
+		drawModelNodes(model_->nodes[scene.nodes[i]]);
 	}
 
 	if (texture_) 
 	{
-		texture_->release();
+		texture_->release(GL_TEXTURE0);
 	}
 	vao_.release();
 	program_->release();
@@ -234,59 +236,36 @@ void Model::bindMesh(const tinygltf::Mesh & mesh)
 				bool error = false;
 			
 				tinygltf::Image & image = model_->images[tex.source];
-
-				QOpenGLTexture::PixelFormat pixelFormat = QOpenGLTexture::PixelFormat::RGBA;
-
-				if (image.component == 1)
+				
+				QImage::Format imageFormat = QImage::Format::NImageFormats;
+				
+				if (image.bits == 8 && image.component == 3)
 				{
-					pixelFormat = QOpenGLTexture::PixelFormat::Red;
+					imageFormat = QImage::Format::Format_RGB888;
 				}
-				else if (image.component == 2)
+				else if (image.bits == 8 && image.component == 4)
 				{
-					pixelFormat = QOpenGLTexture::PixelFormat::RG;
+					imageFormat = QImage::Format::Format_RGBA8888;
 				}
-				else if (image.component == 3)
+				else if (image.bits == 16 && image.component == 3)
 				{
-					pixelFormat = QOpenGLTexture::PixelFormat::RGB;
+					imageFormat = QImage::Format::Format_RGB32;
 				}
-				else if (image.component == 4)
+				else if (image.bits == 16 && image.component == 4)
 				{
-					pixelFormat = QOpenGLTexture::PixelFormat::RGBA;
-				}
-				else
-				{
-					qDebug() << "Unsupported pixel format: image.component=%d" << image.component;
-					error = true;
-				}
-
-				QOpenGLTexture::PixelType pixelType;
-
-				if (image.bits == 8)
-				{
-					pixelType = QOpenGLTexture::PixelType::UInt8;
-				}
-				else if (image.bits == 16)
-				{
-					pixelType = QOpenGLTexture::PixelType::UInt16;
+					imageFormat = QImage::Format::Format_RGBA64;
 				}
 				else
 				{
-					qDebug() << "Unsupported pixel type: image.bits=%d" << image.bits;
+					qDebug() << "Unsupported texture format: image.bits=" << image.bits << "\timage.component=" << image.component;
 					error = true;
 				}
 
 				if (!error)
 				{
-					texture_ = std::make_unique<QOpenGLTexture>(QOpenGLTexture::Target::Target2D);
+					texture_ = std::make_unique<QOpenGLTexture>(QImage(image.image.data(), image.width, image.height, imageFormat), QOpenGLTexture::MipMapGeneration::DontGenerateMipMaps);
 					texture_->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
-					texture_->setWrapMode(QOpenGLTexture::ClampToBorder);
-					texture_->setSize(image.width, image.height);
-
-					texture_->bind();
-
-					QOpenGLPixelTransferOptions options = QOpenGLPixelTransferOptions();
-					//options.setAlignment(1);
-					texture_->setData(pixelFormat, pixelType, &image.image.at(0), &options);
+					texture_->setWrapMode(QOpenGLTexture::Repeat);
 				}
 				else {
 					qDebug() << "Couldn't create texture :(";
@@ -296,19 +275,19 @@ void Model::bindMesh(const tinygltf::Mesh & mesh)
 	}
 }
 
-void Model::drawModelNodes(const tinygltf::Node & node, const QMatrix4x4 & mModel, const QMatrix4x4 & mView, const QMatrix4x4 & mProjection)
+void Model::drawModelNodes(const tinygltf::Node & node)
 {
 	if ((node.mesh >= 0) && (node.mesh < model_->meshes.size()))
 	{
-		drawMesh(model_->meshes[node.mesh], mModel, mView, mProjection);
+		drawMesh(model_->meshes[node.mesh]);
 	}
 	for (size_t i = 0; i < node.children.size(); i++)
 	{
-		drawModelNodes(model_->nodes[node.children[i]], mModel, mView, mProjection);
+		drawModelNodes(model_->nodes[node.children[i]]);
 	}
 }
 
-void Model::drawMesh(const tinygltf::Mesh & mesh, const QMatrix4x4 & mModel, const QMatrix4x4 & mView, const QMatrix4x4 & mProjection)
+void Model::drawMesh(const tinygltf::Mesh & mesh)
 {
 	for (size_t i = 0; i < mesh.primitives.size(); ++i)
 	{
