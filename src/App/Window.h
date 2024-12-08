@@ -16,8 +16,44 @@ class Camera;
 class Model;
 class Mesh;
 
+class QBoxLayout;
 class QDoubleSpinBox;
 class QCheckBox;
+
+namespace Utils
+{
+
+class UIVector2D : public QObject
+{
+public:
+	UIVector2D(QBoxLayout * parent, const QString & name);
+
+	void setValue(const QVector3D value);
+	QVector2D getValue() const;
+
+	void setRange(const float minValue, const float maxValue);
+
+private:
+	QDoubleSpinBox * x_;
+	QDoubleSpinBox * y_;
+};
+
+class UIVector3D : public QObject
+{
+public:
+	UIVector3D(QBoxLayout * parent, const QString & name);
+	
+	void setValue(const QVector3D value);
+	QVector3D getValue() const;
+
+	void setRange(const float minValue, const float maxValue);
+
+private:
+	QDoubleSpinBox * x_;
+	QDoubleSpinBox * y_;
+	QDoubleSpinBox * z_;
+};
+} // Utils
 
 class Window final : public fgl::GLWidget
 {
@@ -94,8 +130,16 @@ private:
 	QDoubleSpinBox * morphClampValueSpinBox_;
 
 	QDoubleSpinBox * directionalLightAmbientCoefficientSpinBox_;
+	Utils::UIVector3D * directionalLightDirectionSpinBox_;
+	Utils::UIVector3D * directionalLightColorSpinBox_;
 	QDoubleSpinBox * directionalLightSpecularCoefficientSpinBox_;
 
+	QCheckBox * spotLightAttachedToCameraCheckBox_;
+	Utils::UIVector3D * spotLightPositionSpinBox_;
+	Utils::UIVector3D * spotLightDirectionSpinBox_;
+	QDoubleSpinBox * spotLightCutOffSpinBox_;
+	QDoubleSpinBox * spotLightOuterCutOffSpinBox_;
+	Utils::UIVector3D * spotLightColorSpinBox_;
 	QDoubleSpinBox * spotLightAmbientCoefficientSpinBox_;
 	QDoubleSpinBox * spotLightSpecularCoefficientSpinBox_;
 };

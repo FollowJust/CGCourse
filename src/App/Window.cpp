@@ -34,6 +34,7 @@ QSpinBox * initIntParamWidget(QBoxLayout * parent, const QString & name)
 	label->setStyleSheet("QLabel { color : white; }");
 
 	auto spinBox = new QSpinBox();
+	spinBox->setFocusPolicy(Qt::FocusPolicy::NoFocus);
 
 	hBox->addWidget(label);
 	hBox->addWidget(spinBox);
@@ -54,6 +55,7 @@ QDoubleSpinBox * initDoubleParamWidget(QBoxLayout * parent, const QString & name
 	auto doubleSpinBox = new QDoubleSpinBox();
 	doubleSpinBox->setDecimals(3);
 	doubleSpinBox->setSingleStep(0.005f);
+	doubleSpinBox->setFocusPolicy(Qt::FocusPolicy::NoFocus);
 
 	hBox->addWidget(label);
 	hBox->addWidget(doubleSpinBox);
@@ -72,6 +74,7 @@ QCheckBox * initCheckBoxParamWidget(QBoxLayout * parent, const QString & name)
 	label->setStyleSheet("QLabel { color : white; }");
 
 	auto checkBox = new QCheckBox();
+	checkBox->setFocusPolicy(Qt::FocusPolicy::NoFocus);
 
 	hBox->addWidget(label);
 	hBox->addWidget(checkBox);
@@ -92,13 +95,23 @@ Window::Window() noexcept
 	auto layout = new QVBoxLayout();
 	layout->addWidget(fps, 1);
 
+	// Model scale
 	modelScaleSpinBox_ = initDoubleParamWidget(layout, "Model Scale");
 	modelScaleSpinBox_->setDecimals(3);
 	modelScaleSpinBox_->setSingleStep(0.01f);
 	modelScaleSpinBox_->setRange(0.001f, 100.0f);
-	modelScaleSpinBox_->setValue(1.0f);
+	if (QString(modelPath) == "Duck.glb")
+	{
+		// just to make it fit by default
+		modelScaleSpinBox_->setValue(0.01f);
+	}
+	else 
+	{
+		modelScaleSpinBox_->setValue(1.0f);
+	}
 	modelScaleSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
 
+	// Camera fly speed
 	flySpeedSpinBox_ = initDoubleParamWidget(layout, "Fly Speed");
 	flySpeedSpinBox_->setDecimals(2);
 	flySpeedSpinBox_->setSingleStep(0.1f);
@@ -106,7 +119,7 @@ Window::Window() noexcept
 	flySpeedSpinBox_->setValue(0.01f);
 	flySpeedSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
 
-
+	// Morph params
 	morphCheckBox_ = initCheckBoxParamWidget(layout, "Morph");
 	morphCheckBox_->setChecked(false);
 
@@ -115,35 +128,65 @@ Window::Window() noexcept
 	morphSpeedSpinBox_->setSingleStep(0.1f);
 	morphSpeedSpinBox_->setRange(0.01f, 10.0f);
 	morphSpeedSpinBox_->setValue(1.0f);
-	morphSpeedSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
 
 	morphCoefficientSpinBox_ = initDoubleParamWidget(layout, "Morph Coef");
 	morphCoefficientSpinBox_->setDecimals(2);
 	morphCoefficientSpinBox_->setSingleStep(0.1f);
 	morphCoefficientSpinBox_->setRange(0.01f, 10.0f);
 	morphCoefficientSpinBox_->setValue(1.0f);
-	morphCoefficientSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
 
 	morphClampValueSpinBox_ = initDoubleParamWidget(layout, "Morph Clamp Value");
 	morphClampValueSpinBox_->setDecimals(2);
 	morphClampValueSpinBox_->setSingleStep(0.1f);
 	morphClampValueSpinBox_->setRange(0.01f, 10.0f);
 	morphClampValueSpinBox_->setValue(1.0f);
-	morphClampValueSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
+	// Directional Light params
+	directionalLightDirectionSpinBox_ = new Utils::UIVector3D(layout, "DirLight Direction");
+	directionalLightDirectionSpinBox_->setValue(QVector3D(0.0f,-1.0f, 0.0f));
+
+	directionalLightColorSpinBox_ = new Utils::UIVector3D(layout, "DirLight Color");
+	directionalLightColorSpinBox_->setValue(QVector3D(1.0f, 1.0f, 1.0f));
+	directionalLightColorSpinBox_->setRange(0.0f, 1.0f);
 
 	directionalLightAmbientCoefficientSpinBox_ = initDoubleParamWidget(layout, "DirLight Ambient");
 	directionalLightAmbientCoefficientSpinBox_->setDecimals(2);
 	directionalLightAmbientCoefficientSpinBox_->setSingleStep(0.1f);
 	directionalLightAmbientCoefficientSpinBox_->setRange(0.0f, 10.0f);
 	directionalLightAmbientCoefficientSpinBox_->setValue(0.2f);
-	directionalLightAmbientCoefficientSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
 
 	directionalLightSpecularCoefficientSpinBox_ = initDoubleParamWidget(layout, "DirLight Specular");
 	directionalLightSpecularCoefficientSpinBox_->setDecimals(2);
 	directionalLightSpecularCoefficientSpinBox_->setSingleStep(0.1f);
 	directionalLightSpecularCoefficientSpinBox_->setRange(0.0f, 10.0f);
 	directionalLightSpecularCoefficientSpinBox_->setValue(0.7f);
-	directionalLightSpecularCoefficientSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
+	// Spot Light params
+	spotLightAttachedToCameraCheckBox_ = initCheckBoxParamWidget(layout, "SpotLight Attached to Camera");
+	spotLightAttachedToCameraCheckBox_->setChecked(true);
+
+	spotLightPositionSpinBox_ = new Utils::UIVector3D(layout, "SpotLight Position");
+	spotLightPositionSpinBox_->setValue(QVector3D(0.0f, 0.0f, 0.0f));
+	
+	spotLightDirectionSpinBox_ = new Utils::UIVector3D(layout, "SpotLight Direction");
+	spotLightDirectionSpinBox_->setValue(QVector3D(0.0f, 0.0f, 0.0f));
+	
+
+	spotLightCutOffSpinBox_ = initDoubleParamWidget(layout, "SpotLight Cut Off Angle");
+	spotLightCutOffSpinBox_->setDecimals(2);
+	spotLightCutOffSpinBox_->setSingleStep(0.1f);
+	spotLightCutOffSpinBox_->setRange(0.0f, 90.0f);
+	spotLightCutOffSpinBox_->setValue(2.5f);
+
+	spotLightOuterCutOffSpinBox_ = initDoubleParamWidget(layout, "SpotLight Outer Cut Off Angle");
+	spotLightOuterCutOffSpinBox_->setDecimals(2);
+	spotLightOuterCutOffSpinBox_->setSingleStep(0.1f);
+	spotLightOuterCutOffSpinBox_->setRange(0.0f, 90.0f);
+	spotLightOuterCutOffSpinBox_->setValue(10.0f);
+
+	spotLightColorSpinBox_ = new Utils::UIVector3D(layout, "SpotLight Color");
+	spotLightColorSpinBox_->setValue(QVector3D(1.0f, 1.0f, 1.0f));
+	spotLightColorSpinBox_->setRange(0.0f, 1.0f);
 
 	spotLightAmbientCoefficientSpinBox_ = initDoubleParamWidget(layout, "SpotLight Ambient");
 	spotLightAmbientCoefficientSpinBox_->setDecimals(2);
@@ -207,6 +250,13 @@ void Window::onRender()
 
 	model_->bindProgram();
 
+	// Common uniforms
+	model_->setUniformValue("view", camera_->GetViewMatrix());
+	model_->setUniformValue("projection", projection_);
+
+	model_->setUniformValue("viewPos", camera_->GetViewPosition());
+
+	// Morph
 	if (morphCheckBox_->isChecked())
 	{
 		model_->setUniformValue("morphingMixValue", abs(qCos(totalFramesCount / 100.0f * morphSpeedSpinBox_->value())));
@@ -218,25 +268,28 @@ void Window::onRender()
 	model_->setUniformValue("morphCoef", morphCoefficientSpinBox_->value());
 	model_->setUniformValue("morphClampValue", morphClampValueSpinBox_->value());
 
-	model_->setUniformValue("view", camera_->GetViewMatrix());
-	model_->setUniformValue("projection", projection_);
-
-	model_->setUniformValue("viewPos", camera_->GetViewPosition());
-
 	// Directional Light
-	model_->setUniformValue("directionalLight.direction", QVector3D(0.0f, -1.0f, 0.0f));
+	model_->setUniformValue("directionalLight.direction", directionalLightDirectionSpinBox_->getValue());
 
-	model_->setUniformValue("directionalLight.color", QVector3D(0.3f, 0.3f, 0.32f));
+	model_->setUniformValue("directionalLight.color", directionalLightColorSpinBox_->getValue());
 	model_->setUniformValue("directionalLight.ambientStrength", directionalLightAmbientCoefficientSpinBox_->value());
 	model_->setUniformValue("directionalLight.specularStrength", directionalLightSpecularCoefficientSpinBox_->value());
 
 	// Spot Light
-	model_->setUniformValue("spotLight.position", camera_->GetViewPosition());
-	model_->setUniformValue("spotLight.direction", camera_->GetViewDirection());
-	model_->setUniformValue("spotLight.cutOff", qCos(qDegreesToRadians(2.5f)));
-	model_->setUniformValue("spotLight.outerCutOff", qCos(qDegreesToRadians(10.0f)));
+	if (spotLightAttachedToCameraCheckBox_->isChecked())
+	{
+		model_->setUniformValue("spotLight.position", camera_->GetViewPosition());
+		model_->setUniformValue("spotLight.direction", camera_->GetViewDirection());
+	}
+	else
+	{
+		model_->setUniformValue("spotLight.position", spotLightPositionSpinBox_->getValue());
+		model_->setUniformValue("spotLight.direction", spotLightDirectionSpinBox_->getValue());
+	}
+	model_->setUniformValue("spotLight.cutOff", qCos(qDegreesToRadians(spotLightCutOffSpinBox_->value())));
+	model_->setUniformValue("spotLight.outerCutOff", qCos(qDegreesToRadians(spotLightOuterCutOffSpinBox_->value())));
 
-	model_->setUniformValue("spotLight.color", QVector3D(0.8f, 0.0f, 0.0f));
+	model_->setUniformValue("spotLight.color", spotLightColorSpinBox_->getValue());
 	model_->setUniformValue("spotLight.ambientStrength", spotLightAmbientCoefficientSpinBox_->value());
 	model_->setUniformValue("spotLight.specularStrength", spotLightSpecularCoefficientSpinBox_->value());
 
@@ -419,4 +472,103 @@ auto Window::captureMetrics() -> PerfomanceMetricsGuard
 				emit updateUI();
 			}
 		}};
+}
+
+Utils::UIVector3D::UIVector3D(QBoxLayout * parent, const QString & name)
+{
+	auto hBox = new QHBoxLayout();
+	hBox->setSpacing(0);
+	hBox->setAlignment(Qt::AlignLeft);
+
+	auto label = new QLabel(name);
+	label->setStyleSheet("QLabel { color : white; }");
+	hBox->addWidget(label);
+
+	
+	x_ = new QDoubleSpinBox();
+	x_->setDecimals(3);
+	x_->setSingleStep(0.01f);
+	x_->setRange(-100.0f, 100.0f);
+	x_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+	hBox->addWidget(x_);
+
+	y_ = new QDoubleSpinBox();
+	y_->setDecimals(3);
+	y_->setSingleStep(0.01f);
+	y_->setRange(-100.0f, 100.0f);
+	y_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+	hBox->addWidget(y_);
+
+	z_ = new QDoubleSpinBox();
+	z_->setDecimals(3);
+	z_->setSingleStep(0.01f);
+	z_->setRange(-100.0f, 100.0f);
+	z_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+	hBox->addWidget(z_);
+
+	parent->addLayout(hBox);
+}
+
+void Utils::UIVector3D::setValue(const QVector3D value)
+{
+	x_->setValue(value.x());
+	y_->setValue(value.y());
+	z_->setValue(value.z());
+}
+
+QVector3D Utils::UIVector3D::getValue() const
+{
+	return QVector3D(x_->value(), y_->value(), z_->value());
+}
+
+void Utils::UIVector3D::setRange(const float minValue, const float maxValue)
+{
+	x_->setRange(minValue, maxValue);
+	y_->setRange(minValue, maxValue);
+	z_->setRange(minValue, maxValue);
+}
+
+Utils::UIVector2D::UIVector2D(QBoxLayout * parent, const QString & name)
+{
+	auto hBox = new QHBoxLayout();
+	hBox->setSpacing(0);
+	hBox->setAlignment(Qt::AlignLeft);
+
+	auto label = new QLabel(name);
+	label->setStyleSheet("QLabel { color : white; }");
+	hBox->addWidget(label);
+
+
+	x_ = new QDoubleSpinBox();
+	x_->setDecimals(3);
+	x_->setSingleStep(0.01f);
+	x_->setRange(-100.0f, 100.0f);
+	x_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+	hBox->addWidget(x_);
+
+	y_ = new QDoubleSpinBox();
+	y_->setDecimals(3);
+	y_->setSingleStep(0.01f);
+	y_->setRange(-100.0f, 100.0f);
+	y_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+	hBox->addWidget(y_);
+
+	parent->addLayout(hBox);
+}
+
+void Utils::UIVector2D::setValue(const QVector3D value)
+{
+	x_->setValue(value.x());
+	y_->setValue(value.y());
+}
+
+QVector2D Utils::UIVector2D::getValue() const
+{
+	return QVector2D(x_->value(), y_->value());
+}
+
+void Utils::UIVector2D::setRange(const float minValue, const float maxValue)
+{
+	x_->setRange(minValue, maxValue);
+	y_->setRange(minValue, maxValue);
 }
