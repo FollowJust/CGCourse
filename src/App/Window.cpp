@@ -20,7 +20,7 @@
 namespace
 {
 //todo fix that
-constexpr char modelPath[] = "Duck.glb";
+constexpr char modelPath[] = "DamagedHelmet.glb";
 
 }// namespace
 
