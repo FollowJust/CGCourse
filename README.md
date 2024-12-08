@@ -6,7 +6,7 @@
 - `D` - right
 - `E` - up
 - `Q` - down
-- `Left Ctrl` - activate/deactivate mouse tracing. When mouse tracking is disabled, mouse drag could be used to rotate the camera
+- `Left Ctrl` - activate/deactivate mouse tracking. When mouse tracking is disabled, mouse drag could be used to rotate the camera
 
 ## Build from console (same as for base repository)
 
