@@ -2,6 +2,7 @@
 
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
+#include <QOpenGLPixelTransferOptions>
 #include <string>
 
 #define TINYGLTF_IMPLEMENTATION
@@ -97,6 +98,18 @@ void Model::bind()
 void Model::draw(const QMatrix4x4 & mModel, const QMatrix4x4 & mView, const QMatrix4x4 & mProjection)
 {
 	vao_.bind();
+	
+	program_->bind();
+
+	program_->setUniformValue("model", mModel);
+	program_->setUniformValue("view", mView);
+	program_->setUniformValue("projection", mProjection);
+
+	if (texture_)
+	{
+		glActiveTexture(GL_TEXTURE0);
+		texture_->bind();
+	}
 
 	const tinygltf::Scene & scene = model_->scenes[model_->defaultScene];
 	for (size_t i = 0; i < scene.nodes.size(); ++i)
@@ -104,7 +117,12 @@ void Model::draw(const QMatrix4x4 & mModel, const QMatrix4x4 & mView, const QMat
 		drawModelNodes(model_->nodes[scene.nodes[i]], mModel, mView, mProjection);
 	}
 
+	if (texture_) 
+	{
+		texture_->release();
+	}
 	vao_.release();
+	program_->release();
 }
 
 void Model::bindModelNodes(const tinygltf::Node & node)
@@ -207,63 +225,74 @@ void Model::bindMesh(const tinygltf::Mesh & mesh)
 			}
 		}
 
-		//if (model.textures.size() > 0)
-		//{
-		//	// fixme: Use material's baseColor
-		//	tinygltf::Texture & tex = model.textures[0];
+		if (model_->textures.size() > 0)
+		{
+			tinygltf::Texture & tex = model_->textures[0];
 
-		//	if (tex.source > -1)
-		//	{
+			if (tex.source > -1)
+			{
+				bool error = false;
+			
+				tinygltf::Image & image = model_->images[tex.source];
 
-		//		GLuint texid;
-		//		glGenTextures(1, &texid);
+				QOpenGLTexture::PixelFormat pixelFormat = QOpenGLTexture::PixelFormat::RGBA;
 
-		//		tinygltf::Image & image = model.images[tex.source];
+				if (image.component == 1)
+				{
+					pixelFormat = QOpenGLTexture::PixelFormat::Red;
+				}
+				else if (image.component == 2)
+				{
+					pixelFormat = QOpenGLTexture::PixelFormat::RG;
+				}
+				else if (image.component == 3)
+				{
+					pixelFormat = QOpenGLTexture::PixelFormat::RGB;
+				}
+				else if (image.component == 4)
+				{
+					pixelFormat = QOpenGLTexture::PixelFormat::RGBA;
+				}
+				else
+				{
+					qDebug() << "Unsupported pixel format: image.component=%d" << image.component;
+					error = true;
+				}
 
-		//		glBindTexture(GL_TEXTURE_2D, texid);
-		//		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-		//		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		//		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		//		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-		//		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+				QOpenGLTexture::PixelType pixelType;
 
-		//		GLenum format = GL_RGBA;
+				if (image.bits == 8)
+				{
+					pixelType = QOpenGLTexture::PixelType::UInt8;
+				}
+				else if (image.bits == 16)
+				{
+					pixelType = QOpenGLTexture::PixelType::UInt16;
+				}
+				else
+				{
+					qDebug() << "Unsupported pixel type: image.bits=%d" << image.bits;
+					error = true;
+				}
 
-		//		if (image.component == 1)
-		//		{
-		//			format = GL_RED;
-		//		}
-		//		else if (image.component == 2)
-		//		{
-		//			format = GL_RG;
-		//		}
-		//		else if (image.component == 3)
-		//		{
-		//			format = GL_RGB;
-		//		}
-		//		else
-		//		{
-		//			// ???
-		//		}
+				if (!error)
+				{
+					texture_ = std::make_unique<QOpenGLTexture>(QOpenGLTexture::Target::Target2D);
+					texture_->setMinMagFilters(QOpenGLTexture::Linear, QOpenGLTexture::Linear);
+					texture_->setWrapMode(QOpenGLTexture::ClampToBorder);
+					texture_->setSize(image.width, image.height);
 
-		//		GLenum type = GL_UNSIGNED_BYTE;
-		//		if (image.bits == 8)
-		//		{
-		//			// ok
-		//		}
-		//		else if (image.bits == 16)
-		//		{
-		//			type = GL_UNSIGNED_SHORT;
-		//		}
-		//		else
-		//		{
-		//			// ???
-		//		}
+					texture_->bind();
 
-		//		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0,
-		//					 format, type, &image.image.at(0));
-		//	}
-		//}
+					QOpenGLPixelTransferOptions options = QOpenGLPixelTransferOptions();
+					//options.setAlignment(1);
+					texture_->setData(pixelFormat, pixelType, &image.image.at(0), &options);
+				}
+				else {
+					qDebug() << "Couldn't create texture :(";
+				}
+			}
+		}
 	}
 }
 
@@ -288,12 +317,6 @@ void Model::drawMesh(const tinygltf::Mesh & mesh, const QMatrix4x4 & mModel, con
 
 		QOpenGLBuffer & vbo = vbos_[indexAccessor.bufferView];
 		vbo.bind();
-
-		program_->bind();
-
-		program_->setUniformValue("model", mModel);
-		program_->setUniformValue("view", mView);
-		program_->setUniformValue("projection", mProjection);
 
 		glDrawElements(primitive.mode, indexAccessor.count,
 					   indexAccessor.componentType,

@@ -15,7 +15,7 @@
 
 namespace
 {
-	//todo fix that
+//todo fix that
 constexpr char modelPath[] = "Duck.glb";
 
 }// namespace
@@ -103,7 +103,6 @@ void Window::onResize(const size_t width, const size_t height)
 	projection_.setToIdentity();
 	projection_.perspective(fov, aspect, zNear, zFar);
 
-	setMouseTracking(true);
 	QCursor::setPos(mapToGlobal(rect().center()));
 	prevMousePosition_ = QVector2D(width * 0.5f, height * 0.5f);
 }
@@ -113,17 +112,12 @@ void Window::mousePressEvent(QMouseEvent * e)
 	prevMousePosition_ = QVector2D(e->pos().x(), height() - e->pos().y());
 }
 
-void Window::mouseReleaseEvent(QMouseEvent * e)
-{
-}
-
 void Window::mouseMoveEvent(QMouseEvent * e)
 {
-	// fix out of window move (out of focus)
-
 	const QVector2D & currentMousePosition = QVector2D(e->pos().x(), height() - e->pos().y());
 
-	if (prevMousePosition_ == QVector2D(-1.0f, -1.0f)) {
+	if (prevMousePosition_ == QVector2D(-1.0f, -1.0f))
+	{
 		prevMousePosition_ = currentMousePosition;
 		return;
 	}
@@ -135,6 +129,16 @@ void Window::mouseMoveEvent(QMouseEvent * e)
 	diff *= sensitivity;
 
 	camera_->mouseMove(diff);
+}
+
+void Window::enterEvent(QEvent * e)
+{	
+	prevMousePosition_ = QVector2D(-1.0f, -1.0f);
+}
+
+void Window::leaveEvent(QEvent * e)
+{
+	prevMousePosition_ = QVector2D(-1.0f, -1.0f);
 }
 
 void Window::keyPressEvent(QKeyEvent * e)
@@ -157,16 +161,28 @@ void Window::keyPressEvent(QKeyEvent * e)
 			camera_->startMoving(Camera::Movement::RIGHT);
 			break;
 		}
-
+		case Qt::Key_Q: {
+			camera_->startMoving(Camera::Movement::DOWN);
+			break;
+		}
+		case Qt::Key_E: {
+			camera_->startMoving(Camera::Movement::UP);
+			break;
+		}
 		case Qt::Key_Control: {
 			if (!mouseGrabbed_)
 			{
+				setMouseTracking(true);
 				grabMouse();
+
 				mouseGrabbed_ = true;
 				prevMousePosition_ = QVector2D(-1.0f, -1.0f);
 			}
-			else {
+			else
+			{
+				setMouseTracking(false);
 				releaseMouse();
+
 				mouseGrabbed_ = false;
 				prevMousePosition_ = QVector2D(-1.0f, -1.0f);
 			}
@@ -200,6 +216,14 @@ void Window::keyReleaseEvent(QKeyEvent * e)
 		}
 		case Qt::Key_D: {
 			camera_->stopMoving(Camera::Movement::RIGHT);
+			break;
+		}
+		case Qt::Key_Q: {
+			camera_->stopMoving(Camera::Movement::DOWN);
+			break;
+		}
+		case Qt::Key_E: {
+			camera_->stopMoving(Camera::Movement::UP);
 			break;
 		}
 		default:

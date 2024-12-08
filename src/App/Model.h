@@ -43,6 +43,8 @@ private:
 
 private:
 	std::unique_ptr<QOpenGLShaderProgram> program_;
+
+	std::unique_ptr<QOpenGLTexture> texture_;
 	QOpenGLVertexArrayObject vao_;
 	QMap<int, QOpenGLBuffer> vbos_;
 };

@@ -30,6 +30,16 @@ void Camera::update()
 		position_ += speed_ * right_;
 	}
 
+	if (movingFlags & Movement::UP)
+	{
+		position_ += speed_ * up_;
+	}
+
+	if (movingFlags & Movement::DOWN)
+	{
+		position_ -= speed_ * up_;
+	}
+
 	view_.setToIdentity();
 	view_.lookAt(position_, position_ + front_, up_);
 }
