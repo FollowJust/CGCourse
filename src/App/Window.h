@@ -16,6 +16,8 @@ class Camera;
 class Model;
 class Mesh;
 
+class QOpenGLFramebufferObject;
+
 class QBoxLayout;
 class QDoubleSpinBox;
 class QCheckBox;
@@ -68,6 +70,12 @@ public: // fgl::GLWidget
 	void onResize(size_t width, size_t height) override;
 
 private:
+	void resizeFramebuffers(const size_t width, const size_t height);
+	void GBufferPass();
+
+	void FullscreenPass();
+
+private:
 	void mousePressEvent(QMouseEvent * e) override;
 	void mouseMoveEvent(QMouseEvent * e) override;
 	void enterEvent(QEvent * e) override;
@@ -99,6 +107,8 @@ signals:
 	void updateUI();
 
 private:
+	std::unique_ptr<QOpenGLFramebufferObject> gbufferFBO_;
+
 	QMatrix4x4 projection_;
 
 	QElapsedTimer timer_;
@@ -109,6 +119,12 @@ private:
 	} ui_;
 
 	bool animated_ = true;
+
+private:
+	std::unique_ptr<QOpenGLShaderProgram> fullscreenProgram_;
+	QOpenGLVertexArrayObject fsQuadVAO_;
+	QOpenGLBuffer fsQuadVBO_{QOpenGLBuffer::Type::VertexBuffer};
+	QOpenGLBuffer fsQuadIBO_{QOpenGLBuffer::Type::IndexBuffer};
 
 private:
 	size_t totalFramesCount = 0;

@@ -18,8 +18,8 @@ Model::Model()
 	initializeOpenGLFunctions();
 
 	program_ = std::make_unique<QOpenGLShaderProgram>();
-	program_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/diffuse.vs");
-	program_->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/Shaders/diffuse.fs");
+	program_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/gbuffer.vs");
+	program_->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/Shaders/gbuffer.fs");
 	program_->link();
 
 	mModel_.setToIdentity();
@@ -329,7 +329,7 @@ void Model::drawMesh(const tinygltf::Mesh & mesh)
 
 		QOpenGLBuffer & vbo = vbos_[indexAccessor.bufferView];
 		vbo.bind();
-
+	
 		glDrawElements(primitive.mode, static_cast<GLsizei>(indexAccessor.count),
 					   indexAccessor.componentType,
 					   BUFFER_OFFSET(indexAccessor.byteOffset));

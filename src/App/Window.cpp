@@ -4,7 +4,9 @@
 #include <QDoubleSpinBox>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QOpenGLFramebufferObject>
 #include <QOpenGLFunctions>
+#include <QOpenGLExtraFunctions>
 #include <QOpenGLShaderProgram>
 #include <QScreen>
 #include <QSpinBox>
@@ -19,6 +21,13 @@
 
 namespace
 {
+constexpr std::array<GLfloat, 21u> fullscreenQuadVertices = {
+	/* Postion */
+	-1.f, -1.f,
+	3.f, -1.f,
+	-1.f, 3.f};
+constexpr std::array<GLuint, 3u> fullscreenQuadIndices = {0, 1, 2};
+
 //todo fix that
 constexpr char modelPath[] = "DamagedHelmet.glb";
 
@@ -105,7 +114,7 @@ Window::Window() noexcept
 		// just to make it fit by default
 		modelScaleSpinBox_->setValue(0.01f);
 	}
-	else 
+	else
 	{
 		modelScaleSpinBox_->setValue(1.0f);
 	}
@@ -143,7 +152,7 @@ Window::Window() noexcept
 
 	// Directional Light params
 	directionalLightDirectionSpinBox_ = new Utils::UIVector3D(layout, "DirLight Direction");
-	directionalLightDirectionSpinBox_->setValue(QVector3D(0.0f,-1.0f, 0.0f));
+	directionalLightDirectionSpinBox_->setValue(QVector3D(0.0f, -1.0f, 0.0f));
 
 	directionalLightColorSpinBox_ = new Utils::UIVector3D(layout, "DirLight Color");
 	directionalLightColorSpinBox_->setValue(QVector3D(1.0f, 1.0f, 1.0f));
@@ -167,10 +176,10 @@ Window::Window() noexcept
 
 	spotLightPositionSpinBox_ = new Utils::UIVector3D(layout, "SpotLight Position");
 	spotLightPositionSpinBox_->setValue(QVector3D(0.0f, 0.0f, 0.0f));
-	
+
 	spotLightDirectionSpinBox_ = new Utils::UIVector3D(layout, "SpotLight Direction");
 	spotLightDirectionSpinBox_->setValue(QVector3D(0.0f, 0.0f, 0.0f));
-	
+
 
 	spotLightCutOffSpinBox_ = initDoubleParamWidget(layout, "SpotLight Cut Off Angle");
 	spotLightCutOffSpinBox_->setDecimals(2);
@@ -223,6 +232,43 @@ Window::~Window()
 
 void Window::onInit()
 {
+	// Init fullscreen stuff
+	{
+		fullscreenProgram_ = std::make_unique<QOpenGLShaderProgram>();
+		fullscreenProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/fullscreen.vs");
+		fullscreenProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/Shaders/fullscreen.fs");
+		fullscreenProgram_->link();
+		// Create VAO object
+		fsQuadVAO_.create();
+		fsQuadVAO_.bind();
+
+		// Create VBO
+		fsQuadVBO_.create();
+		fsQuadVBO_.bind();
+		fsQuadVBO_.setUsagePattern(QOpenGLBuffer::StaticDraw);
+		fsQuadVBO_.allocate(fullscreenQuadVertices.data(), static_cast<int>(fullscreenQuadVertices.size() * sizeof(GLfloat)));
+
+		// Create IBO
+		fsQuadIBO_.create();
+		fsQuadIBO_.bind();
+		fsQuadIBO_.setUsagePattern(QOpenGLBuffer::StaticDraw);
+		fsQuadIBO_.allocate(fullscreenQuadIndices.data(), static_cast<int>(fullscreenQuadIndices.size() * sizeof(GLuint)));
+
+		// Bind attributes
+		fullscreenProgram_->bind();
+
+		fullscreenProgram_->enableAttributeArray(0);
+		fullscreenProgram_->setAttributeBuffer(0, GL_FLOAT, 0, 2, static_cast<int>(2 * sizeof(GLfloat)));
+
+		// Release all
+		fullscreenProgram_->release();
+
+		fsQuadVAO_.release();
+
+		fsQuadIBO_.release();
+		fsQuadVBO_.release();
+	}
+
 	model_ = std::make_unique<Model>();
 	model_->load(modelPath);
 	model_->bind();
@@ -243,58 +289,59 @@ void Window::onRender()
 
 	const auto guard = captureMetrics();
 
-	// Clear buffers
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	GBufferPass();
 
-	model_->setScale(modelScaleSpinBox_->value());
+	FullscreenPass();
 
-	model_->bindProgram();
+	//model_->setScale(modelScaleSpinBox_->value());
 
-	// Common uniforms
-	model_->setUniformValue("view", camera_->GetViewMatrix());
-	model_->setUniformValue("projection", projection_);
+	//model_->bindProgram();
 
-	model_->setUniformValue("viewPos", camera_->GetViewPosition());
+	//// Common uniforms
+	//model_->setUniformValue("view", camera_->GetViewMatrix());
+	//model_->setUniformValue("projection", projection_);
 
-	// Morph
-	if (morphCheckBox_->isChecked())
-	{
-		model_->setUniformValue("morphingMixValue", abs(qCos(totalFramesCount / 100.0f * morphSpeedSpinBox_->value())));
-	}
-	else
-	{
-		model_->setUniformValue("morphingMixValue", 0);
-	}
-	model_->setUniformValue("morphCoef", morphCoefficientSpinBox_->value());
-	model_->setUniformValue("morphClampValue", morphClampValueSpinBox_->value());
+	//model_->setUniformValue("viewPos", camera_->GetViewPosition());
 
-	// Directional Light
-	model_->setUniformValue("directionalLight.direction", directionalLightDirectionSpinBox_->getValue());
+	//// Morph
+	//if (morphCheckBox_->isChecked())
+	//{
+	//	model_->setUniformValue("morphingMixValue", abs(qCos(totalFramesCount / 100.0f * morphSpeedSpinBox_->value())));
+	//}
+	//else
+	//{
+	//	model_->setUniformValue("morphingMixValue", 0);
+	//}
+	//model_->setUniformValue("morphCoef", morphCoefficientSpinBox_->value());
+	//model_->setUniformValue("morphClampValue", morphClampValueSpinBox_->value());
 
-	model_->setUniformValue("directionalLight.color", directionalLightColorSpinBox_->getValue());
-	model_->setUniformValue("directionalLight.ambientStrength", directionalLightAmbientCoefficientSpinBox_->value());
-	model_->setUniformValue("directionalLight.specularStrength", directionalLightSpecularCoefficientSpinBox_->value());
+	//// Directional Light
+	//model_->setUniformValue("directionalLight.direction", directionalLightDirectionSpinBox_->getValue());
 
-	// Spot Light
-	if (spotLightAttachedToCameraCheckBox_->isChecked())
-	{
-		model_->setUniformValue("spotLight.position", camera_->GetViewPosition());
-		model_->setUniformValue("spotLight.direction", camera_->GetViewDirection());
-	}
-	else
-	{
-		model_->setUniformValue("spotLight.position", spotLightPositionSpinBox_->getValue());
-		model_->setUniformValue("spotLight.direction", spotLightDirectionSpinBox_->getValue());
-	}
-	model_->setUniformValue("spotLight.cutOff", qCos(qDegreesToRadians(spotLightCutOffSpinBox_->value())));
-	model_->setUniformValue("spotLight.outerCutOff", qCos(qDegreesToRadians(spotLightOuterCutOffSpinBox_->value())));
+	//model_->setUniformValue("directionalLight.color", directionalLightColorSpinBox_->getValue());
+	//model_->setUniformValue("directionalLight.ambientStrength", directionalLightAmbientCoefficientSpinBox_->value());
+	//model_->setUniformValue("directionalLight.specularStrength", directionalLightSpecularCoefficientSpinBox_->value());
 
-	model_->setUniformValue("spotLight.color", spotLightColorSpinBox_->getValue());
-	model_->setUniformValue("spotLight.ambientStrength", spotLightAmbientCoefficientSpinBox_->value());
-	model_->setUniformValue("spotLight.specularStrength", spotLightSpecularCoefficientSpinBox_->value());
+	//// Spot Light
+	//if (spotLightAttachedToCameraCheckBox_->isChecked())
+	//{
+	//	model_->setUniformValue("spotLight.position", camera_->GetViewPosition());
+	//	model_->setUniformValue("spotLight.direction", camera_->GetViewDirection());
+	//}
+	//else
+	//{
+	//	model_->setUniformValue("spotLight.position", spotLightPositionSpinBox_->getValue());
+	//	model_->setUniformValue("spotLight.direction", spotLightDirectionSpinBox_->getValue());
+	//}
+	//model_->setUniformValue("spotLight.cutOff", qCos(qDegreesToRadians(spotLightCutOffSpinBox_->value())));
+	//model_->setUniformValue("spotLight.outerCutOff", qCos(qDegreesToRadians(spotLightOuterCutOffSpinBox_->value())));
+
+	//model_->setUniformValue("spotLight.color", spotLightColorSpinBox_->getValue());
+	//model_->setUniformValue("spotLight.ambientStrength", spotLightAmbientCoefficientSpinBox_->value());
+	//model_->setUniformValue("spotLight.specularStrength", spotLightSpecularCoefficientSpinBox_->value());
 
 
-	model_->draw();
+	//model_->draw();
 
 	++frameCount_;
 	++totalFramesCount;
@@ -311,6 +358,9 @@ void Window::onResize(const size_t width, const size_t height)
 	// Configure viewport
 	glViewport(0, 0, static_cast<GLint>(width), static_cast<GLint>(height));
 
+	// Configure framebuffers
+	resizeFramebuffers(width, height);
+
 	// Configure matrix
 	const auto aspect = static_cast<float>(width) / static_cast<float>(height);
 	const auto zNear = 0.1f;
@@ -318,9 +368,87 @@ void Window::onResize(const size_t width, const size_t height)
 	const auto fov = 60.0f;
 	projection_.setToIdentity();
 	projection_.perspective(fov, aspect, zNear, zFar);
-
+	
+	// Reset mouse
 	QCursor::setPos(mapToGlobal(rect().center()));
 	prevMousePosition_ = QVector2D(width * 0.5f, height * 0.5f);
+}
+
+void Window::resizeFramebuffers(const size_t width, const size_t height)
+{
+	const QSize & resolution = QSize(width, height);
+	if (gbufferFBO_)
+	{
+		if (gbufferFBO_->isBound())
+		{
+			QOpenGLFramebufferObject::bindDefault();
+		}
+		gbufferFBO_->release();
+	}
+
+	gbufferFBO_.reset(new QOpenGLFramebufferObject(resolution, QOpenGLFramebufferObject::Attachment::Depth));
+	// add another color attachment for normals
+	gbufferFBO_->addColorAttachment(resolution, GL_RGBA);
+
+	// Clear buffers
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+	GLint depthBuffer;
+	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &depthBuffer);
+
+	//glBindTexture(GL_TEXTURE0, depthBuffer);
+	qDebug() << depthBuffer << gbufferFBO_->textures().size();
+
+	gbufferFBO_->release();
+}
+
+void Window::GBufferPass()
+{
+	gbufferFBO_->bind();
+
+	QOpenGLExtraFunctions * f = QOpenGLContext::currentContext()->extraFunctions();
+	GLenum bufs[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+	f->glDrawBuffers(2, bufs);
+
+	// Clear buffers
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	{
+		model_->setScale(modelScaleSpinBox_->value());
+
+		model_->bindProgram();
+
+		// Common uniforms
+		model_->setUniformValue("view", camera_->GetViewMatrix());
+		model_->setUniformValue("projection", projection_);
+
+		model_->draw();
+	}
+
+	gbufferFBO_->release();
+}
+
+void Window::FullscreenPass()
+{
+	assert(QOpenGLFramebufferObject::bindDefault());
+
+	// Clear buffers
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	fullscreenProgram_->bind();
+
+	fsQuadVAO_.bind();
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gbufferFBO_->textures()[1]);
+
+	// Draw
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
+
+	// Release VAO and shader program
+	fsQuadVAO_.release();
+	fullscreenProgram_->release();
 }
 
 void Window::mousePressEvent(QMouseEvent * e)
@@ -484,7 +612,7 @@ Utils::UIVector3D::UIVector3D(QBoxLayout * parent, const QString & name)
 	label->setStyleSheet("QLabel { color : white; }");
 	hBox->addWidget(label);
 
-	
+
 	x_ = new QDoubleSpinBox();
 	x_->setDecimals(3);
 	x_->setSingleStep(0.01f);

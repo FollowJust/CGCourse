@@ -9,5 +9,9 @@
     <qresource prefix="/">
         <file>Shaders/diffuse.fs</file>
         <file>Shaders/diffuse.vs</file>
+		<file>Shaders/gbuffer.fs</file>
+        <file>Shaders/gbuffer.vs</file>	
+		<file>Shaders/fullscreen.fs</file>
+        <file>Shaders/fullscreen.vs</file>
     </qresource>
 </RCC>

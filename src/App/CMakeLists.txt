@@ -9,6 +9,10 @@ set(SRCS
 
     Shaders/diffuse.fs
     Shaders/diffuse.vs
+    Shaders/gbuffer.fs
+    Shaders/gbuffer.vs
+    Shaders/fullscreen.fs
+    Shaders/fullscreen.vs
     Textures/voronoi.png
     Models/Duck.glb
     Models/DamagedHelmet.glb
