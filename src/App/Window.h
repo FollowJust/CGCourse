@@ -22,6 +22,8 @@ class QBoxLayout;
 class QDoubleSpinBox;
 class QCheckBox;
 
+class FrameBufferObjectWrapper;
+
 namespace Utils
 {
 
@@ -70,10 +72,14 @@ public: // fgl::GLWidget
 	void onResize(size_t width, size_t height) override;
 
 private:
-	void resizeFramebuffers(const size_t width, const size_t height);
+	void resizeFramebuffers(const QSize & resolution);
 	void GBufferPass();
 
+	void SSAOPass();
+
+	void BlurPass();
 	void FullscreenPass();
+
 
 private:
 	void mousePressEvent(QMouseEvent * e) override;
@@ -107,8 +113,8 @@ signals:
 	void updateUI();
 
 private:
-	std::unique_ptr<QOpenGLFramebufferObject> gbufferFBO_;
-
+	size_t width_, height_;
+	float aspect_, fov_;
 	QMatrix4x4 projection_;
 
 	QElapsedTimer timer_;
@@ -121,11 +127,19 @@ private:
 	bool animated_ = true;
 
 private:
-	std::unique_ptr<QOpenGLShaderProgram> fullscreenProgram_;
+	// We can reuse them for all fullscreen passes
 	QOpenGLVertexArrayObject fsQuadVAO_;
 	QOpenGLBuffer fsQuadVBO_{QOpenGLBuffer::Type::VertexBuffer};
 	QOpenGLBuffer fsQuadIBO_{QOpenGLBuffer::Type::IndexBuffer};
 
+
+	std::unique_ptr<QOpenGLShaderProgram> fullscreenProgram_;
+	std::unique_ptr<QOpenGLShaderProgram> ssaoProgram_;
+	std::unique_ptr<QOpenGLShaderProgram> blurProgram_;
+
+	std::unique_ptr<FrameBufferObjectWrapper> gbufferFBO_;
+	std::unique_ptr<FrameBufferObjectWrapper> ssaoFBO_;
+	std::unique_ptr<FrameBufferObjectWrapper> blurFBO_;
 private:
 	size_t totalFramesCount = 0;
 

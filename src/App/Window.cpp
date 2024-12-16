@@ -4,15 +4,16 @@
 #include <QDoubleSpinBox>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QOpenGLExtraFunctions>
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLFunctions>
-#include <QOpenGLExtraFunctions>
 #include <QOpenGLShaderProgram>
 #include <QScreen>
 #include <QSpinBox>
 #include <QVBoxLayout>
 #include <qcursor.h>
 #include <qmath.h>
+#include <QRandomGenerator>
 
 #include <array>
 
@@ -32,6 +33,97 @@ constexpr std::array<GLuint, 3u> fullscreenQuadIndices = {0, 1, 2};
 constexpr char modelPath[] = "DamagedHelmet.glb";
 
 }// namespace
+
+
+class FrameBufferObjectWrapper : QOpenGLFunctions
+{
+public:
+	FrameBufferObjectWrapper()
+	{
+		initializeOpenGLFunctions();
+		glGenFramebuffers(1, &fbo_);
+	}
+
+	~FrameBufferObjectWrapper()
+	{
+		unbind();
+
+		for (unsigned int i = 0; i < textures_.size(); i++)
+		{
+			if (textures_[i])
+			{
+				delete textures_[i];
+			}
+		}
+		textures_.clear();
+
+		if (depthTexture_)
+		{
+			delete depthTexture_;
+		}
+
+		glDeleteFramebuffers(1, &fbo_);
+	}
+
+	void bind()
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo_);
+	}
+
+	void unbind()
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	}
+
+	void addColorAttachment(const QSize & resolution, const QOpenGLTexture::TextureFormat & format)
+	{
+		auto tex = new QOpenGLTexture(QOpenGLTexture::Target2D);
+		tex->setFormat(format);
+		tex->setSize(resolution.width(), resolution.height());
+		tex->setMinMagFilters(QOpenGLTexture::Filter::Linear, QOpenGLTexture::Filter::Linear);
+		tex->allocateStorage();
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + textures_.size(), GL_TEXTURE_2D, tex->textureId(), 0);
+
+		textures_.push_back(tex);
+	}
+
+	QVector<GLuint> textures() const
+	{
+		QVector<GLuint> handles;
+
+		for (const auto & tex: textures_)
+		{
+			handles.push_back(tex->textureId());
+		}
+
+		return handles;
+	};
+
+	GLuint albedo() const { return textures()[0]; }
+	GLuint normals() const { return textures()[1]; }
+
+	GLuint depth() const { return depthTexture_ ? depthTexture_->textureId() : 0; };
+
+	void addDepthAttachment(const QSize & resolution)
+	{
+		assert(!depthTexture_);
+
+		depthTexture_ = new QOpenGLTexture(QOpenGLTexture::Target2D);
+		depthTexture_->setFormat(QOpenGLTexture::TextureFormat::DepthFormat);
+		depthTexture_->setSize(resolution.width(), resolution.height());
+		depthTexture_->setMinMagFilters(QOpenGLTexture::Filter::Linear, QOpenGLTexture::Filter::Linear);
+		depthTexture_->allocateStorage(QOpenGLTexture::PixelFormat::Depth, QOpenGLTexture::PixelType::UInt32);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTexture_->textureId(), 0);
+	}
+
+private:
+	GLuint fbo_ = static_cast<GLuint>(-1);
+
+	QVector<QOpenGLTexture *> textures_;
+	QOpenGLTexture * depthTexture_ = nullptr;
+};
 
 QSpinBox * initIntParamWidget(QBoxLayout * parent, const QString & name)
 {
@@ -227,6 +319,12 @@ Window::~Window()
 	{
 		// Free resources with context bounded.
 		const auto guard = bindContext();
+
+		gbufferFBO_.release();
+		ssaoFBO_.release();
+		blurFBO_.release();
+
+		model_.release();
 	}
 }
 
@@ -269,6 +367,22 @@ void Window::onInit()
 		fsQuadVBO_.release();
 	}
 
+	// Since SSAO is just a fullscreen pass, we can reuse existing VAO
+	{
+		ssaoProgram_ = std::make_unique<QOpenGLShaderProgram>();
+		ssaoProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssao.vs");
+		ssaoProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/Shaders/ssao.fs");
+		ssaoProgram_->link();
+	}
+
+	// Same for Blur program
+	{
+		blurProgram_ = std::make_unique<QOpenGLShaderProgram>();
+		blurProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/blur.vs");
+		blurProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/Shaders/blur.fs");
+		blurProgram_->link();
+	}
+
 	model_ = std::make_unique<Model>();
 	model_->load(modelPath);
 	model_->bind();
@@ -291,57 +405,9 @@ void Window::onRender()
 
 	GBufferPass();
 
+	SSAOPass();
+
 	FullscreenPass();
-
-	//model_->setScale(modelScaleSpinBox_->value());
-
-	//model_->bindProgram();
-
-	//// Common uniforms
-	//model_->setUniformValue("view", camera_->GetViewMatrix());
-	//model_->setUniformValue("projection", projection_);
-
-	//model_->setUniformValue("viewPos", camera_->GetViewPosition());
-
-	//// Morph
-	//if (morphCheckBox_->isChecked())
-	//{
-	//	model_->setUniformValue("morphingMixValue", abs(qCos(totalFramesCount / 100.0f * morphSpeedSpinBox_->value())));
-	//}
-	//else
-	//{
-	//	model_->setUniformValue("morphingMixValue", 0);
-	//}
-	//model_->setUniformValue("morphCoef", morphCoefficientSpinBox_->value());
-	//model_->setUniformValue("morphClampValue", morphClampValueSpinBox_->value());
-
-	//// Directional Light
-	//model_->setUniformValue("directionalLight.direction", directionalLightDirectionSpinBox_->getValue());
-
-	//model_->setUniformValue("directionalLight.color", directionalLightColorSpinBox_->getValue());
-	//model_->setUniformValue("directionalLight.ambientStrength", directionalLightAmbientCoefficientSpinBox_->value());
-	//model_->setUniformValue("directionalLight.specularStrength", directionalLightSpecularCoefficientSpinBox_->value());
-
-	//// Spot Light
-	//if (spotLightAttachedToCameraCheckBox_->isChecked())
-	//{
-	//	model_->setUniformValue("spotLight.position", camera_->GetViewPosition());
-	//	model_->setUniformValue("spotLight.direction", camera_->GetViewDirection());
-	//}
-	//else
-	//{
-	//	model_->setUniformValue("spotLight.position", spotLightPositionSpinBox_->getValue());
-	//	model_->setUniformValue("spotLight.direction", spotLightDirectionSpinBox_->getValue());
-	//}
-	//model_->setUniformValue("spotLight.cutOff", qCos(qDegreesToRadians(spotLightCutOffSpinBox_->value())));
-	//model_->setUniformValue("spotLight.outerCutOff", qCos(qDegreesToRadians(spotLightOuterCutOffSpinBox_->value())));
-
-	//model_->setUniformValue("spotLight.color", spotLightColorSpinBox_->getValue());
-	//model_->setUniformValue("spotLight.ambientStrength", spotLightAmbientCoefficientSpinBox_->value());
-	//model_->setUniformValue("spotLight.specularStrength", spotLightSpecularCoefficientSpinBox_->value());
-
-
-	//model_->draw();
 
 	++frameCount_;
 	++totalFramesCount;
@@ -355,52 +421,72 @@ void Window::onRender()
 
 void Window::onResize(const size_t width, const size_t height)
 {
+	width_ = width;
+	height_ = height;
 	// Configure viewport
 	glViewport(0, 0, static_cast<GLint>(width), static_cast<GLint>(height));
 
 	// Configure framebuffers
-	resizeFramebuffers(width, height);
+	resizeFramebuffers(QSize(width, height));
 
 	// Configure matrix
-	const auto aspect = static_cast<float>(width) / static_cast<float>(height);
+	aspect_ = static_cast<float>(width) / static_cast<float>(height);
 	const auto zNear = 0.1f;
 	const auto zFar = 100.0f;
-	const auto fov = 60.0f;
+	fov_ = 60.0f;
 	projection_.setToIdentity();
-	projection_.perspective(fov, aspect, zNear, zFar);
-	
+	projection_.perspective(fov_, aspect_, zNear, zFar);
+
 	// Reset mouse
 	QCursor::setPos(mapToGlobal(rect().center()));
 	prevMousePosition_ = QVector2D(width * 0.5f, height * 0.5f);
 }
 
-void Window::resizeFramebuffers(const size_t width, const size_t height)
+void Window::resizeFramebuffers(const QSize & resolution)
 {
-	const QSize & resolution = QSize(width, height);
-	if (gbufferFBO_)
+	// GBuffer-like FBO
 	{
-		if (gbufferFBO_->isBound())
+		if (gbufferFBO_)
 		{
-			QOpenGLFramebufferObject::bindDefault();
+			gbufferFBO_->unbind();
 		}
-		gbufferFBO_->release();
+
+		gbufferFBO_.reset(new FrameBufferObjectWrapper());
+		// add color attachments for albedo and normals
+		gbufferFBO_->bind();
+		gbufferFBO_->addColorAttachment(resolution, QOpenGLTexture::TextureFormat::RGBA32F);
+		gbufferFBO_->addColorAttachment(resolution, QOpenGLTexture::TextureFormat::RGB32F);
+		gbufferFBO_->addDepthAttachment(resolution);
+		gbufferFBO_->unbind();
 	}
 
-	gbufferFBO_.reset(new QOpenGLFramebufferObject(resolution, QOpenGLFramebufferObject::Attachment::Depth));
-	// add another color attachment for normals
-	gbufferFBO_->addColorAttachment(resolution, GL_RGBA);
+	// SSAO FBO
+	{
+		if (ssaoFBO_)
+		{
+			ssaoFBO_->unbind();
+		}
 
-	// Clear buffers
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		ssaoFBO_.reset(new FrameBufferObjectWrapper());
+		// add just one color attachment
+		ssaoFBO_->bind();
+		ssaoFBO_->addColorAttachment(resolution, QOpenGLTexture::TextureFormat::RGBA32F);
+		ssaoFBO_->unbind();
+	}
 
+	// Blur FBO
+	{
+		if (blurFBO_)
+		{
+			blurFBO_->unbind();
+		}
 
-	GLint depthBuffer;
-	glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME, &depthBuffer);
-
-	//glBindTexture(GL_TEXTURE0, depthBuffer);
-	qDebug() << depthBuffer << gbufferFBO_->textures().size();
-
-	gbufferFBO_->release();
+		blurFBO_.reset(new FrameBufferObjectWrapper());
+		// add just one color attachment
+		blurFBO_->bind();
+		blurFBO_->addColorAttachment(resolution, QOpenGLTexture::TextureFormat::RGBA32F);
+		blurFBO_->unbind();
+	}
 }
 
 void Window::GBufferPass()
@@ -408,6 +494,7 @@ void Window::GBufferPass()
 	gbufferFBO_->bind();
 
 	QOpenGLExtraFunctions * f = QOpenGLContext::currentContext()->extraFunctions();
+
 	GLenum bufs[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
 	f->glDrawBuffers(2, bufs);
 
@@ -426,7 +513,45 @@ void Window::GBufferPass()
 		model_->draw();
 	}
 
-	gbufferFBO_->release();
+	gbufferFBO_->unbind();
+}
+
+void Window::SSAOPass()
+{
+	ssaoFBO_->bind();
+	QOpenGLExtraFunctions * f = QOpenGLContext::currentContext()->extraFunctions();
+
+	GLenum bufs[1] = {GL_COLOR_ATTACHMENT0};
+	f->glDrawBuffers(1, bufs);
+
+	// Clear buffers
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	ssaoProgram_->bind();
+
+	// Set uniforms
+	ssaoProgram_->setUniformValue("projection", projection_);
+	ssaoProgram_->setUniformValue("aspectRatio", aspect_);
+	ssaoProgram_->setUniformValue("tanHalfFOV", static_cast<float>(qTan(qDegreesToRadians(fov_ / 2.0f))));
+	ssaoProgram_->setUniformValue("sampleRadius", aspect_);
+
+	QRandomGenerator a, b, c;
+	a.seed(1);
+	b.seed(42);
+	c.seed(12333);
+	ssaoProgram_->setUniformValue("aoKernel", QVector3D(a.bounded(1.0f), b.bounded(1.0f), c.bounded(1.0f)));
+
+	fsQuadVAO_.bind();
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gbufferFBO_->depth());
+
+	// Draw
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
+
+	// Release VAO and shader program
+	fsQuadVAO_.release();
+	ssaoProgram_->release();
 }
 
 void Window::FullscreenPass()
@@ -441,7 +566,7 @@ void Window::FullscreenPass()
 	fsQuadVAO_.bind();
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gbufferFBO_->textures()[1]);
+	glBindTexture(GL_TEXTURE_2D, gbufferFBO_->albedo());
 
 	// Draw
 	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
@@ -449,6 +574,28 @@ void Window::FullscreenPass()
 	// Release VAO and shader program
 	fsQuadVAO_.release();
 	fullscreenProgram_->release();
+}
+
+void Window::BlurPass()
+{
+	assert(QOpenGLFramebufferObject::bindDefault());
+
+	// Clear buffers
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	blurProgram_->bind();
+
+	fsQuadVAO_.bind();
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gbufferFBO_->textures()[1]);
+
+	// Draw
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
+
+	// Release VAO and shader program
+	fsQuadVAO_.release();
+	blurProgram_->release();
 }
 
 void Window::mousePressEvent(QMouseEvent * e)

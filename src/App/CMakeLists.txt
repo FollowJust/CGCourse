@@ -13,6 +13,8 @@ set(SRCS
     Shaders/gbuffer.vs
     Shaders/fullscreen.fs
     Shaders/fullscreen.vs
+    Shaders/ssao.fs
+    Shaders/ssao.vs
     Textures/voronoi.png
     Models/Duck.glb
     Models/DamagedHelmet.glb

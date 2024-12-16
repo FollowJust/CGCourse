@@ -12,6 +12,10 @@
 		<file>Shaders/gbuffer.fs</file>
         <file>Shaders/gbuffer.vs</file>	
 		<file>Shaders/fullscreen.fs</file>
-        <file>Shaders/fullscreen.vs</file>
+        <file>Shaders/fullscreen.vs</file>	
+		<file>Shaders/blur.fs</file>
+        <file>Shaders/blur.vs</file>
+	    <file>Shaders/ssao.fs</file>
+        <file>Shaders/ssao.vs</file>
     </qresource>
 </RCC>

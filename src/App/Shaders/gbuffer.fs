@@ -13,5 +13,4 @@ void main()
 {
     FragColor = vec4(texture(albedoTexture, UV).rgb, 1.0f);
     FragNormal = vec4(Normal, 1.0f);
-    // gl_FragDepth = gl_FragCoord.z;
 }
