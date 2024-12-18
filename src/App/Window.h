@@ -170,10 +170,12 @@ private:
 private:
 	QDoubleSpinBox * flySpeedSpinBox_;
 
+	QCheckBox * directionalLightTurnOn_;
 	Utils::UIVector3D * directionalLightDirectionSpinBox_;
 	Utils::UIVector3D * directionalLightColorSpinBox_;
 	QDoubleSpinBox * directionalLightSpecularCoefficientSpinBox_;
 
+	QCheckBox * spotLightTurnOn_;
 	QDoubleSpinBox * spotLightCutOffSpinBox_;
 	QDoubleSpinBox * spotLightOuterCutOffSpinBox_;
 	Utils::UIVector3D * spotLightColorSpinBox_;

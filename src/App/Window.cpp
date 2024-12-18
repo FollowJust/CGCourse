@@ -206,6 +206,9 @@ Window::Window() noexcept
 	flySpeedSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
 
 	// Directional Light params
+	directionalLightTurnOn_ = initCheckBoxParamWidget(layout, "Turn on DirLight");
+	directionalLightTurnOn_->setChecked(true);
+
 	directionalLightDirectionSpinBox_ = new Utils::UIVector3D(layout, "DirLight Direction");
 	directionalLightDirectionSpinBox_->setValue(QVector3D(0.0f, -1.0f, 0.0f));
 
@@ -220,17 +223,20 @@ Window::Window() noexcept
 	directionalLightSpecularCoefficientSpinBox_->setValue(0.7f);
 
 	// Spot Light params
+	spotLightTurnOn_ = initCheckBoxParamWidget(layout, "Turn on SpotLight");
+	spotLightTurnOn_->setChecked(false);
+
 	spotLightCutOffSpinBox_ = initDoubleParamWidget(layout, "SpotLight Cut Off Angle");
 	spotLightCutOffSpinBox_->setDecimals(2);
 	spotLightCutOffSpinBox_->setSingleStep(0.1f);
 	spotLightCutOffSpinBox_->setRange(0.0f, 90.0f);
-	spotLightCutOffSpinBox_->setValue(2.5f);
+	spotLightCutOffSpinBox_->setValue(15.f);
 
 	spotLightOuterCutOffSpinBox_ = initDoubleParamWidget(layout, "SpotLight Outer Cut Off Angle");
 	spotLightOuterCutOffSpinBox_->setDecimals(2);
 	spotLightOuterCutOffSpinBox_->setSingleStep(0.1f);
 	spotLightOuterCutOffSpinBox_->setRange(0.0f, 90.0f);
-	spotLightOuterCutOffSpinBox_->setValue(10.0f);
+	spotLightOuterCutOffSpinBox_->setValue(30.0f);
 
 	spotLightColorSpinBox_ = new Utils::UIVector3D(layout, "SpotLight Color");
 	spotLightColorSpinBox_->setValue(QVector3D(1.0f, 1.0f, 1.0f));
@@ -617,12 +623,16 @@ void Window::FinalPass()
 		finalProgram_->setUniformValue("viewDir", camera_->GetViewDirection());
 
 		// Directional Light
+		finalProgram_->setUniformValue("directionalLight.turnedOn", directionalLightTurnOn_->isChecked());
+
 		finalProgram_->setUniformValue("directionalLight.direction", directionalLightDirectionSpinBox_->getValue());
 
 		finalProgram_->setUniformValue("directionalLight.color", directionalLightColorSpinBox_->getValue());
 		finalProgram_->setUniformValue("directionalLight.specularStrength", float(directionalLightSpecularCoefficientSpinBox_->value()));
 
 		// Spot Light
+		finalProgram_->setUniformValue("spotLight.turnedOn", spotLightTurnOn_->isChecked());
+
 		finalProgram_->setUniformValue("spotLight.position", camera_->GetViewPosition());
 		finalProgram_->setUniformValue("spotLight.direction", camera_->GetViewDirection());
 

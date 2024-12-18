@@ -2,6 +2,8 @@
 
 struct DirectionalLight 
 {
+    bool turnedOn;
+
 	vec3 direction;
 
 	vec3 color;
@@ -10,6 +12,8 @@ struct DirectionalLight
 
 struct SpotLight 
 {
+    bool turnedOn;
+
     vec3 position;
     vec3 direction;
     float cutOff;
@@ -60,7 +64,7 @@ vec3 CalculateSpotLighting(SpotLight light, vec3 normal, vec3 fragPos, vec3 view
 
     // attenuation
     float dist = length(light.position - fragPos);
-    float attenuation = 1.0 / (1.0f + 1.0f * dist + 1.0f * (dist * dist));
+    float attenuation = 1.0 / (1.0f + 0.1f * dist + 0.01f * (dist * dist));
 
     // spotlight intensity
     float theta = dot(lightDir, normalize(-light.direction)); 
@@ -77,11 +81,15 @@ void main()
 	vec3 albedo = texture(albedoTexture, UV).rgb;
     vec3 normal = texture(normalsTexture, UV).rgb;
 
-    FragColor = vec4(pos, 1.0f);
-    return;
+	vec3 directionalLightResult = vec3(0.0f);
+    if (directionalLight.turnedOn) {
+        directionalLightResult = CalculateDirectionalLighting(directionalLight, normal, viewDir, albedo);
+    }
 
-	vec3 directionalLightResult = CalculateDirectionalLighting(directionalLight, normal, viewDir, albedo);
-	vec3 spotLightResult = CalculateSpotLighting(spotLight, normal, pos, viewDir, albedo);
+    vec3 spotLightResult = vec3(0.0f);
+    if (spotLight.turnedOn) {
+	    spotLightResult = CalculateSpotLighting(spotLight, normal, pos, viewDir, albedo);
+    }
 
     FragColor = vec4(directionalLightResult + spotLightResult, 1.0);
 }
