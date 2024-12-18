@@ -70,12 +70,12 @@ void Camera::stopMoving(const Movement & direction)
 
 void Camera::reset()
 {
-	position_ = QVector3D(0.0f, 0.0f, 20.0f);
+	position_ = QVector3D(-29.7770710, 2.46003246, -29.3902779);
 	QVector3D target = QVector3D(0.0f, 0.0f, 0.0f);
 
 	worldUp_ = QVector3D(0.0f, 1.0f, 0.0f);
-	up_ = QVector3D(0.0f, 1.0f, 0.0f);
-	front_ = QVector3D(0.0f, 0.0f, -1.0f);
+	up_ = QVector3D(0.134787023, 0.983254910, 0.122646786);
+	front_ = QVector3D(0.727245808, -0.182235494, 0.661742926);
 
 	right_ = QVector3D::crossProduct(up_, front_);
 	right_.normalize();
@@ -86,8 +86,8 @@ void Camera::reset()
 
 	movingFlags = 0;
 
-	yaw_ = -90.0f;
-	pitch_ = 0.0f;
+	yaw_ = 42.3;
+	pitch_ = -10.49f;
 }
 
 void Camera::updateCameraVectors()

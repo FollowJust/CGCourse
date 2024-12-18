@@ -2,7 +2,7 @@
 
 uniform sampler2D aoTexture;
 
-uniform int halfKernelSize;
+uniform int kernelHalfSize;
 
 in vec2 uv;
 out vec4 out_col;
@@ -13,9 +13,9 @@ void main()
 
     vec3 res = vec3(0.0f);
     int totalSamples = 0;
-    for (int x = -halfKernelSize; x < halfKernelSize; ++x) 
+    for (int x = -kernelHalfSize; x < kernelHalfSize; ++x) 
     {
-        for (int y = -halfKernelSize; y < halfKernelSize; ++y) 
+        for (int y = -kernelHalfSize; y < kernelHalfSize; ++y) 
         {
             vec2 offset = vec2(float(x), float(y)) * texelSize;
 

@@ -21,6 +21,7 @@ class QOpenGLFramebufferObject;
 class QBoxLayout;
 class QDoubleSpinBox;
 class QCheckBox;
+class QComboBox;
 
 class FrameBufferObjectWrapper;
 
@@ -82,13 +83,13 @@ private:
 	enum PassType
 	{
 		ALBEDO = 0,
-		NORMALS = 1,
+		NORMALS,
+		POSITION,
+		DEPTH,
 		SSAO,
 		SSAO_BLURRED,
 		FINAL
 	};
-
-	PassType currentPass_ = PassType::FINAL;
 
 	void FullscreenPass(const PassType &type);
 
@@ -158,9 +159,6 @@ private:
 	std::unique_ptr<FrameBufferObjectWrapper> blurFBO_;
 
 private:
-	size_t totalFramesCount = 0;
-
-private:
 	std::unique_ptr<Camera> camera_;
 	
 	std::unique_ptr<Model> model_;
@@ -170,11 +168,22 @@ private:
 private:
 	QDoubleSpinBox * flySpeedSpinBox_;
 
+	QComboBox * showPassComboBox_;
+
+	// Blur
+	QDoubleSpinBox * blurKernelHalfSize_;
+
+	// SSAO
+	QDoubleSpinBox * ssaoRadiusSpinBox_;
+	QDoubleSpinBox * ssaoKernelSizeSpinBox_;
+
+	// DirLight
 	QCheckBox * directionalLightTurnOn_;
 	Utils::UIVector3D * directionalLightDirectionSpinBox_;
 	Utils::UIVector3D * directionalLightColorSpinBox_;
 	QDoubleSpinBox * directionalLightSpecularCoefficientSpinBox_;
 
+	// Spotlight
 	QCheckBox * spotLightTurnOn_;
 	QDoubleSpinBox * spotLightCutOffSpinBox_;
 	QDoubleSpinBox * spotLightOuterCutOffSpinBox_;

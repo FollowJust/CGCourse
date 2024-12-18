@@ -1,6 +1,7 @@
 #include "Window.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QLabel>
 #include <QMouseEvent>
@@ -23,13 +24,13 @@
 namespace
 {
 constexpr std::array<GLfloat, 6u> fullscreenQuadVertices = {
-	/* Postion */
+	/* Position */
 	-1.f, -1.f,
 	3.f, -1.f,
 	-1.f, 3.f};
+
 constexpr std::array<GLuint, 3u> fullscreenQuadIndices = {0, 1, 2};
 
-//todo fix that
 constexpr char modelPath[] = "DamagedHelmet.glb";
 
 }// namespace
@@ -185,6 +186,26 @@ QCheckBox * initCheckBoxParamWidget(QBoxLayout * parent, const QString & name)
 	return checkBox;
 }
 
+QComboBox * initComboBoxParamWidget(QBoxLayout * parent, const QString & name, const QStringList & items)
+{
+	auto hBox = new QHBoxLayout();
+	hBox->setSpacing(0);
+	hBox->setAlignment(Qt::AlignLeft);
+
+	auto label = new QLabel(name);
+	label->setStyleSheet("QLabel { color : white; }");
+
+	auto comboBox = new QComboBox();
+	comboBox->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+	comboBox->addItems(items);
+
+	hBox->addWidget(label);
+	hBox->addWidget(comboBox);
+	parent->addLayout(hBox);
+
+	return comboBox;
+}
+
 Window::Window() noexcept
 {
 	const auto formatFPS = [](const auto value) {
@@ -204,6 +225,29 @@ Window::Window() noexcept
 	flySpeedSpinBox_->setRange(0.1f, 1.0f);
 	flySpeedSpinBox_->setValue(0.1f);
 	flySpeedSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
+
+	// Pass
+	showPassComboBox_ = initComboBoxParamWidget(layout, "Pass", {"Final", "Albedo", "Normals", "Position", "Depth", "SSAO", "SSAO Blurred"});
+
+	// Blur
+	blurKernelHalfSize_ = initDoubleParamWidget(layout, "Blur Strength");
+	blurKernelHalfSize_->setDecimals(1);
+	blurKernelHalfSize_->setRange(1.0f, 64.0f);
+	blurKernelHalfSize_->setSingleStep(1.0f);
+	blurKernelHalfSize_->setValue(8.0f);
+
+	// SSAO
+	ssaoRadiusSpinBox_ = initDoubleParamWidget(layout, "SSAO Radius");
+	ssaoRadiusSpinBox_->setDecimals(2);
+	ssaoRadiusSpinBox_->setRange(0.0f, 100.0f);
+	ssaoRadiusSpinBox_->setSingleStep(0.05f);
+	ssaoRadiusSpinBox_->setValue(0.5f);
+
+	ssaoKernelSizeSpinBox_ = initDoubleParamWidget(layout, "SSAO Samples");
+	ssaoKernelSizeSpinBox_->setDecimals(1);
+	ssaoKernelSizeSpinBox_->setRange(1.0f, 128.0f);
+	ssaoKernelSizeSpinBox_->setSingleStep(1.0f);
+	ssaoKernelSizeSpinBox_->setValue(64.0f);
 
 	// Directional Light params
 	directionalLightTurnOn_ = initCheckBoxParamWidget(layout, "Turn on DirLight");
@@ -326,7 +370,7 @@ void Window::onInit()
 		a.seed(1);
 		b.seed(42);
 		c.seed(25555);
-		for (unsigned int i = 0; i < 64; i++)
+		for (unsigned int i = 0; i < 128; i++)
 		{
 			kernels_.push_back(QVector3D(a.bounded(2.0f) - 1.0f, b.bounded(2.0f) - 1.0f, c.bounded(2.0f) - 1.0f));
 		}
@@ -374,10 +418,36 @@ void Window::onRender()
 
 	BlurPass();
 
-	FullscreenPass(currentPass_);
+	if (showPassComboBox_->currentText() == "Albedo")
+	{
+		FullscreenPass(ALBEDO);
+	}
+	else if (showPassComboBox_->currentText() == "Normals")
+	{
+		FullscreenPass(NORMALS);
+	}
+	else if (showPassComboBox_->currentText() == "Position")
+	{
+		FullscreenPass(POSITION);
+	}
+	else if (showPassComboBox_->currentText() == "Depth")
+	{
+		FullscreenPass(DEPTH);
+	}
+	else if (showPassComboBox_->currentText() == "SSAO")
+	{
+		FullscreenPass(SSAO);
+	}
+	else if (showPassComboBox_->currentText() == "SSAO Blurred")
+	{
+		FullscreenPass(SSAO_BLURRED);
+	}
+	else if (showPassComboBox_->currentText() == "Final")
+	{
+		FullscreenPass(FINAL);
+	}
 
 	++frameCount_;
-	++totalFramesCount;
 
 	// Request redraw if animated
 	if (animated_)
@@ -403,18 +473,6 @@ void Window::onResize(const size_t width, const size_t height)
 	fov_ = 60.0f;
 	projection_.setToIdentity();
 	projection_.perspective(fov_, aspect_, zNear, zFar);
-
-	{
-		float ar = aspect_;
-		float tan = static_cast<float>(qTan(qDegreesToRadians(fov_ / 2.0f)));
-		const float n = 0.1f;
-		const float f2 = 100.0f;
-		qDebug() << "projection:" << projection_ << "aspectRatio:" << aspect_ << "tanHalfFOV:" << static_cast<float>(qTan(qDegreesToRadians(fov_ / 2.0f)));
-		qDebug() << 1 / (ar * tan) << 0 << 0 << 0;
-		qDebug() << 0 << 1 / (tan) << 0 << 0;
-		qDebug() << 0 << 0 << (n + f2) / (n - f2) << ((2.0f * f2 * n) / (n - f2));
-		qDebug() << 0 << 0 << -1 << 0;
-	}
 
 	// Reset mouse
 	QCursor::setPos(mapToGlobal(rect().center()));
@@ -513,10 +571,10 @@ void Window::SSAOPass()
 	ssaoProgram_->setUniformValue("projection", projection_);
 	ssaoProgram_->setUniformValue("aspectRatio", aspect_);
 	ssaoProgram_->setUniformValue("tanHalfFOV", static_cast<float>(qTan(qDegreesToRadians(fov_ / 2.0f))));
-	ssaoProgram_->setUniformValue("sampleRadius", 0.5f);
+	ssaoProgram_->setUniformValue("sampleRadius", static_cast<float>(ssaoRadiusSpinBox_->value()));
 
-	ssaoProgram_->setUniformValueArray("kernel", kernels_.data(), 64);
-
+	ssaoProgram_->setUniformValueArray("kernel", kernels_.data(), static_cast<int>(ssaoKernelSizeSpinBox_->value()));
+	ssaoProgram_->setUniformValue("kernelSize", static_cast<int>(ssaoKernelSizeSpinBox_->value()));
 
 	ssaoProgram_->setUniformValue("depthTexture", 0);
 
@@ -562,6 +620,16 @@ void Window::FullscreenPass(const PassType & type)
 
 		case NORMALS: {
 			texHandle = gbufferFBO_->normals();
+			break;
+		}
+
+		case POSITION: {
+			texHandle = gbufferFBO_->position();
+			break;
+		}
+
+		case DEPTH: {
+			texHandle = gbufferFBO_->depth();
 			break;
 		}
 
@@ -660,7 +728,7 @@ void Window::BlurPass()
 
 	blurProgram_->bind();
 
-	blurProgram_->setUniformValue("halfKernelSize", 8);
+	blurProgram_->setUniformValue("kernelHalfSize", int(blurKernelHalfSize_->value()));
 
 	fsQuadVAO_.bind();
 
