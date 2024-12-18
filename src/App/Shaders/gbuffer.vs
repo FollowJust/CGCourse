@@ -17,8 +17,8 @@ out vec2 UV;
 
 void main()
 {
-	Pos = vec3(model * vec4(vertexPos, 1.0f));
-	gl_Position = projection * view * vec4(Pos, 1.0f);
+	gl_Position = projection * view * model * vec4(vertexPos, 1.0f);
+	Pos = vec3(view * model * vec4(vertexPos, 1.0f));
 	Normal = normalize(mat3(model) * vertexNormal);
 	UV = vertexUV;
 }

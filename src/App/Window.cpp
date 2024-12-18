@@ -8,12 +8,12 @@
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLFunctions>
 #include <QOpenGLShaderProgram>
+#include <QRandomGenerator>
 #include <QScreen>
 #include <QSpinBox>
 #include <QVBoxLayout>
 #include <qcursor.h>
 #include <qmath.h>
-#include <QRandomGenerator>
 
 #include <array>
 
@@ -22,7 +22,7 @@
 
 namespace
 {
-constexpr std::array<GLfloat, 21u> fullscreenQuadVertices = {
+constexpr std::array<GLfloat, 6u> fullscreenQuadVertices = {
 	/* Postion */
 	-1.f, -1.f,
 	3.f, -1.f,
@@ -216,8 +216,8 @@ Window::Window() noexcept
 	flySpeedSpinBox_ = initDoubleParamWidget(layout, "Fly Speed");
 	flySpeedSpinBox_->setDecimals(2);
 	flySpeedSpinBox_->setSingleStep(0.1f);
-	flySpeedSpinBox_->setRange(0.01f, 1.0f);
-	flySpeedSpinBox_->setValue(0.01f);
+	flySpeedSpinBox_->setRange(0.1f, 1.0f);
+	flySpeedSpinBox_->setValue(0.1f);
 	flySpeedSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
 
 	// Morph params
@@ -373,6 +373,17 @@ void Window::onInit()
 		ssaoProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/ssao.vs");
 		ssaoProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/Shaders/ssao.fs");
 		ssaoProgram_->link();
+
+		// Lets populate kernels array here
+		kernels_.clear();
+		QRandomGenerator a, b, c;
+		a.seed(1);
+		b.seed(42);
+		c.seed(25555);
+		for (unsigned int i = 0; i < 64; i++)
+		{
+			kernels_.push_back(QVector3D(a.bounded(2.0f) - 1.0f, b.bounded(2.0f) - 1.0f, c.bounded(2.0f) - 1.0f));
+		}
 	}
 
 	// Same for Blur program
@@ -407,6 +418,8 @@ void Window::onRender()
 
 	SSAOPass();
 
+	BlurPass();
+
 	FullscreenPass();
 
 	++frameCount_;
@@ -436,6 +449,18 @@ void Window::onResize(const size_t width, const size_t height)
 	fov_ = 60.0f;
 	projection_.setToIdentity();
 	projection_.perspective(fov_, aspect_, zNear, zFar);
+
+	{
+		float ar = aspect_;
+		float tan = static_cast<float>(qTan(qDegreesToRadians(fov_ / 2.0f)));
+		const float n = 0.1f;
+		const float f2 = 100.0f;
+		qDebug() << "projection:" << projection_ << "aspectRatio:" << aspect_ << "tanHalfFOV:" << static_cast<float>(qTan(qDegreesToRadians(fov_ / 2.0f)));
+		qDebug() << 1 / (ar * tan) << 0 << 0 << 0;
+		qDebug() << 0 << 1 / (tan) << 0 << 0;
+		qDebug() << 0 << 0 << (n + f2) / (n - f2) << ((2.0f * f2 * n) / (n - f2));
+		qDebug() << 0 << 0 << -1 << 0;
+	}
 
 	// Reset mouse
 	QCursor::setPos(mapToGlobal(rect().center()));
@@ -502,7 +527,7 @@ void Window::GBufferPass()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	{
-		model_->setScale(modelScaleSpinBox_->value());
+		model_->setScale(20.0f);
 
 		model_->bindProgram();
 
@@ -533,18 +558,20 @@ void Window::SSAOPass()
 	ssaoProgram_->setUniformValue("projection", projection_);
 	ssaoProgram_->setUniformValue("aspectRatio", aspect_);
 	ssaoProgram_->setUniformValue("tanHalfFOV", static_cast<float>(qTan(qDegreesToRadians(fov_ / 2.0f))));
-	ssaoProgram_->setUniformValue("sampleRadius", aspect_);
+	ssaoProgram_->setUniformValue("sampleRadius", 0.5f);
 
-	QRandomGenerator a, b, c;
-	a.seed(1);
-	b.seed(42);
-	c.seed(12333);
-	ssaoProgram_->setUniformValue("aoKernel", QVector3D(a.bounded(1.0f), b.bounded(1.0f), c.bounded(1.0f)));
+	// TODO remove fix
+	ssaoProgram_->setUniformValue("DEBUGVALUE", spotLightAttachedToCameraCheckBox_->isChecked());
 
-	fsQuadVAO_.bind();
+	ssaoProgram_->setUniformValueArray("kernel", kernels_.data(), 64);
+
+
+	ssaoProgram_->setUniformValue("depthTexture", 0);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, gbufferFBO_->depth());
+
+	fsQuadVAO_.bind();
 
 	// Draw
 	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
@@ -552,11 +579,19 @@ void Window::SSAOPass()
 	// Release VAO and shader program
 	fsQuadVAO_.release();
 	ssaoProgram_->release();
+
+	ssaoFBO_->unbind();
 }
 
-void Window::FullscreenPass()
+void Window::FullscreenPass(const PassType & type)
 {
-	assert(QOpenGLFramebufferObject::bindDefault());
+	if (type == PassType::FINAL)
+	{
+		FinalPass();
+		return;
+	}
+
+	QOpenGLFramebufferObject::bindDefault();
 
 	// Clear buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -565,8 +600,35 @@ void Window::FullscreenPass()
 
 	fsQuadVAO_.bind();
 
+	GLuint texHandle = 0;
+	switch (type)
+	{
+		case ALBEDO: {
+			texHandle = gbufferFBO_->albedo();
+			break;
+		}
+
+		case NORMALS: {
+			texHandle = gbufferFBO_->normals();
+			break;
+		}
+
+		case SSAO: {
+			texHandle = ssaoFBO_->albedo();
+			break;
+		}
+
+		case SSAO_BLURRED: {
+			texHandle = blurFBO_->albedo();
+			break;
+		}
+		default:
+			texHandle = 0;
+			break;
+	}
+
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gbufferFBO_->albedo());
+	glBindTexture(GL_TEXTURE_2D, texHandle);
 
 	// Draw
 	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
@@ -578,17 +640,19 @@ void Window::FullscreenPass()
 
 void Window::BlurPass()
 {
-	assert(QOpenGLFramebufferObject::bindDefault());
+	blurFBO_->bind();
 
 	// Clear buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	blurProgram_->bind();
 
+	blurProgram_->setUniformValue("halfKernelSize", 8);
+
 	fsQuadVAO_.bind();
 
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gbufferFBO_->textures()[1]);
+	glBindTexture(GL_TEXTURE_2D, ssaoFBO_->albedo());
 
 	// Draw
 	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
@@ -596,6 +660,8 @@ void Window::BlurPass()
 	// Release VAO and shader program
 	fsQuadVAO_.release();
 	blurProgram_->release();
+
+	blurFBO_->unbind();
 }
 
 void Window::mousePressEvent(QMouseEvent * e)

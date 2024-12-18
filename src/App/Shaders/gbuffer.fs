@@ -12,5 +12,6 @@ layout(location = 1) out vec4 FragNormal;
 void main()
 {
     FragColor = vec4(texture(albedoTexture, UV).rgb, 1.0f);
-    FragNormal = vec4(Normal, 1.0f);
+    // FragNormal = vec4(Normal, 1.0f);
+    FragNormal = vec4(Pos, 1.0f);
 }

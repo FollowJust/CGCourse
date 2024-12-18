@@ -3,7 +3,7 @@
 #include <qmath.h>
 
 Camera::Camera()
-	: speed_(0.01f)
+	: speed_(0.1f)
 {
 	reset();
 }
@@ -70,7 +70,7 @@ void Camera::stopMoving(const Movement & direction)
 
 void Camera::reset()
 {
-	position_ = QVector3D(0.0f, 0.0f, 3.0f);
+	position_ = QVector3D(0.0f, 0.0f, 20.0f);
 	QVector3D target = QVector3D(0.0f, 0.0f, 0.0f);
 
 	worldUp_ = QVector3D(0.0f, 1.0f, 0.0f);

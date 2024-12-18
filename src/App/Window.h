@@ -78,7 +78,19 @@ private:
 	void SSAOPass();
 
 	void BlurPass();
-	void FullscreenPass();
+
+	enum PassType
+	{
+		ALBEDO = 0,
+		NORMALS = 1,
+		SSAO,
+		SSAO_BLURRED,
+		FINAL
+	};
+
+	void FullscreenPass(const PassType &type);
+
+	void FinalPass();
 
 
 private:
@@ -134,7 +146,10 @@ private:
 
 
 	std::unique_ptr<QOpenGLShaderProgram> fullscreenProgram_;
+
 	std::unique_ptr<QOpenGLShaderProgram> ssaoProgram_;
+	QVector<QVector3D> kernels_;
+
 	std::unique_ptr<QOpenGLShaderProgram> blurProgram_;
 
 	std::unique_ptr<FrameBufferObjectWrapper> gbufferFBO_;
