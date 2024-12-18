@@ -88,6 +88,8 @@ private:
 		FINAL
 	};
 
+	PassType currentPass_ = PassType::FINAL;
+
 	void FullscreenPass(const PassType &type);
 
 	void FinalPass();
@@ -144,17 +146,17 @@ private:
 	QOpenGLBuffer fsQuadVBO_{QOpenGLBuffer::Type::VertexBuffer};
 	QOpenGLBuffer fsQuadIBO_{QOpenGLBuffer::Type::IndexBuffer};
 
-
-	std::unique_ptr<QOpenGLShaderProgram> fullscreenProgram_;
-
 	std::unique_ptr<QOpenGLShaderProgram> ssaoProgram_;
 	QVector<QVector3D> kernels_;
 
 	std::unique_ptr<QOpenGLShaderProgram> blurProgram_;
+	std::unique_ptr<QOpenGLShaderProgram> finalProgram_;
+	std::unique_ptr<QOpenGLShaderProgram> fullscreenProgram_;
 
 	std::unique_ptr<FrameBufferObjectWrapper> gbufferFBO_;
 	std::unique_ptr<FrameBufferObjectWrapper> ssaoFBO_;
 	std::unique_ptr<FrameBufferObjectWrapper> blurFBO_;
+
 private:
 	size_t totalFramesCount = 0;
 
@@ -166,25 +168,14 @@ private:
 	bool mouseGrabbed_ = false;
 
 private:
-	QDoubleSpinBox * modelScaleSpinBox_;
 	QDoubleSpinBox * flySpeedSpinBox_;
 
-	QCheckBox * morphCheckBox_;
-	QDoubleSpinBox * morphSpeedSpinBox_;
-	QDoubleSpinBox * morphCoefficientSpinBox_;
-	QDoubleSpinBox * morphClampValueSpinBox_;
-
-	QDoubleSpinBox * directionalLightAmbientCoefficientSpinBox_;
 	Utils::UIVector3D * directionalLightDirectionSpinBox_;
 	Utils::UIVector3D * directionalLightColorSpinBox_;
 	QDoubleSpinBox * directionalLightSpecularCoefficientSpinBox_;
 
-	QCheckBox * spotLightAttachedToCameraCheckBox_;
-	Utils::UIVector3D * spotLightPositionSpinBox_;
-	Utils::UIVector3D * spotLightDirectionSpinBox_;
 	QDoubleSpinBox * spotLightCutOffSpinBox_;
 	QDoubleSpinBox * spotLightOuterCutOffSpinBox_;
 	Utils::UIVector3D * spotLightColorSpinBox_;
-	QDoubleSpinBox * spotLightAmbientCoefficientSpinBox_;
 	QDoubleSpinBox * spotLightSpecularCoefficientSpinBox_;
 };

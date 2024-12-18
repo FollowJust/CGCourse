@@ -102,6 +102,7 @@ public:
 
 	GLuint albedo() const { return textures()[0]; }
 	GLuint normals() const { return textures()[1]; }
+	GLuint position() const { return textures()[2]; }
 
 	GLuint depth() const { return depthTexture_ ? depthTexture_->textureId() : 0; };
 
@@ -196,22 +197,6 @@ Window::Window() noexcept
 	auto layout = new QVBoxLayout();
 	layout->addWidget(fps, 1);
 
-	// Model scale
-	modelScaleSpinBox_ = initDoubleParamWidget(layout, "Model Scale");
-	modelScaleSpinBox_->setDecimals(3);
-	modelScaleSpinBox_->setSingleStep(0.01f);
-	modelScaleSpinBox_->setRange(0.001f, 100.0f);
-	if (QString(modelPath) == "Duck.glb")
-	{
-		// just to make it fit by default
-		modelScaleSpinBox_->setValue(0.01f);
-	}
-	else
-	{
-		modelScaleSpinBox_->setValue(1.0f);
-	}
-	modelScaleSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
-
 	// Camera fly speed
 	flySpeedSpinBox_ = initDoubleParamWidget(layout, "Fly Speed");
 	flySpeedSpinBox_->setDecimals(2);
@@ -219,28 +204,6 @@ Window::Window() noexcept
 	flySpeedSpinBox_->setRange(0.1f, 1.0f);
 	flySpeedSpinBox_->setValue(0.1f);
 	flySpeedSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
-
-	// Morph params
-	morphCheckBox_ = initCheckBoxParamWidget(layout, "Morph");
-	morphCheckBox_->setChecked(false);
-
-	morphSpeedSpinBox_ = initDoubleParamWidget(layout, "Morph Speed");
-	morphSpeedSpinBox_->setDecimals(2);
-	morphSpeedSpinBox_->setSingleStep(0.1f);
-	morphSpeedSpinBox_->setRange(0.01f, 10.0f);
-	morphSpeedSpinBox_->setValue(1.0f);
-
-	morphCoefficientSpinBox_ = initDoubleParamWidget(layout, "Morph Coef");
-	morphCoefficientSpinBox_->setDecimals(2);
-	morphCoefficientSpinBox_->setSingleStep(0.1f);
-	morphCoefficientSpinBox_->setRange(0.01f, 10.0f);
-	morphCoefficientSpinBox_->setValue(1.0f);
-
-	morphClampValueSpinBox_ = initDoubleParamWidget(layout, "Morph Clamp Value");
-	morphClampValueSpinBox_->setDecimals(2);
-	morphClampValueSpinBox_->setSingleStep(0.1f);
-	morphClampValueSpinBox_->setRange(0.01f, 10.0f);
-	morphClampValueSpinBox_->setValue(1.0f);
 
 	// Directional Light params
 	directionalLightDirectionSpinBox_ = new Utils::UIVector3D(layout, "DirLight Direction");
@@ -250,12 +213,6 @@ Window::Window() noexcept
 	directionalLightColorSpinBox_->setValue(QVector3D(1.0f, 1.0f, 1.0f));
 	directionalLightColorSpinBox_->setRange(0.0f, 1.0f);
 
-	directionalLightAmbientCoefficientSpinBox_ = initDoubleParamWidget(layout, "DirLight Ambient");
-	directionalLightAmbientCoefficientSpinBox_->setDecimals(2);
-	directionalLightAmbientCoefficientSpinBox_->setSingleStep(0.1f);
-	directionalLightAmbientCoefficientSpinBox_->setRange(0.0f, 10.0f);
-	directionalLightAmbientCoefficientSpinBox_->setValue(0.2f);
-
 	directionalLightSpecularCoefficientSpinBox_ = initDoubleParamWidget(layout, "DirLight Specular");
 	directionalLightSpecularCoefficientSpinBox_->setDecimals(2);
 	directionalLightSpecularCoefficientSpinBox_->setSingleStep(0.1f);
@@ -263,16 +220,6 @@ Window::Window() noexcept
 	directionalLightSpecularCoefficientSpinBox_->setValue(0.7f);
 
 	// Spot Light params
-	spotLightAttachedToCameraCheckBox_ = initCheckBoxParamWidget(layout, "SpotLight Attached to Camera");
-	spotLightAttachedToCameraCheckBox_->setChecked(true);
-
-	spotLightPositionSpinBox_ = new Utils::UIVector3D(layout, "SpotLight Position");
-	spotLightPositionSpinBox_->setValue(QVector3D(0.0f, 0.0f, 0.0f));
-
-	spotLightDirectionSpinBox_ = new Utils::UIVector3D(layout, "SpotLight Direction");
-	spotLightDirectionSpinBox_->setValue(QVector3D(0.0f, 0.0f, 0.0f));
-
-
 	spotLightCutOffSpinBox_ = initDoubleParamWidget(layout, "SpotLight Cut Off Angle");
 	spotLightCutOffSpinBox_->setDecimals(2);
 	spotLightCutOffSpinBox_->setSingleStep(0.1f);
@@ -288,13 +235,6 @@ Window::Window() noexcept
 	spotLightColorSpinBox_ = new Utils::UIVector3D(layout, "SpotLight Color");
 	spotLightColorSpinBox_->setValue(QVector3D(1.0f, 1.0f, 1.0f));
 	spotLightColorSpinBox_->setRange(0.0f, 1.0f);
-
-	spotLightAmbientCoefficientSpinBox_ = initDoubleParamWidget(layout, "SpotLight Ambient");
-	spotLightAmbientCoefficientSpinBox_->setDecimals(2);
-	spotLightAmbientCoefficientSpinBox_->setSingleStep(0.1f);
-	spotLightAmbientCoefficientSpinBox_->setRange(0.0f, 10.0f);
-	spotLightAmbientCoefficientSpinBox_->setValue(0.3f);
-	spotLightAmbientCoefficientSpinBox_->setFocusPolicy(Qt::FocusPolicy::NoFocus);
 
 	spotLightSpecularCoefficientSpinBox_ = initDoubleParamWidget(layout, "SpotLight Specular");
 	spotLightSpecularCoefficientSpinBox_->setDecimals(2);
@@ -394,6 +334,14 @@ void Window::onInit()
 		blurProgram_->link();
 	}
 
+	// Same for Final program
+	{
+		finalProgram_ = std::make_unique<QOpenGLShaderProgram>();
+		finalProgram_->addShaderFromSourceFile(QOpenGLShader::Vertex, ":/Shaders/final.vs");
+		finalProgram_->addShaderFromSourceFile(QOpenGLShader::Fragment, ":/Shaders/final.fs");
+		finalProgram_->link();
+	}
+
 	model_ = std::make_unique<Model>();
 	model_->load(modelPath);
 	model_->bind();
@@ -420,7 +368,7 @@ void Window::onRender()
 
 	BlurPass();
 
-	FullscreenPass();
+	FullscreenPass(currentPass_);
 
 	++frameCount_;
 	++totalFramesCount;
@@ -477,9 +425,10 @@ void Window::resizeFramebuffers(const QSize & resolution)
 		}
 
 		gbufferFBO_.reset(new FrameBufferObjectWrapper());
-		// add color attachments for albedo and normals
+		// add color attachments for albedo, normals and position
 		gbufferFBO_->bind();
 		gbufferFBO_->addColorAttachment(resolution, QOpenGLTexture::TextureFormat::RGBA32F);
+		gbufferFBO_->addColorAttachment(resolution, QOpenGLTexture::TextureFormat::RGB32F);
 		gbufferFBO_->addColorAttachment(resolution, QOpenGLTexture::TextureFormat::RGB32F);
 		gbufferFBO_->addDepthAttachment(resolution);
 		gbufferFBO_->unbind();
@@ -520,8 +469,8 @@ void Window::GBufferPass()
 
 	QOpenGLExtraFunctions * f = QOpenGLContext::currentContext()->extraFunctions();
 
-	GLenum bufs[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
-	f->glDrawBuffers(2, bufs);
+	GLenum bufs[3] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
+	f->glDrawBuffers(3, bufs);
 
 	// Clear buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -560,9 +509,6 @@ void Window::SSAOPass()
 	ssaoProgram_->setUniformValue("tanHalfFOV", static_cast<float>(qTan(qDegreesToRadians(fov_ / 2.0f))));
 	ssaoProgram_->setUniformValue("sampleRadius", 0.5f);
 
-	// TODO remove fix
-	ssaoProgram_->setUniformValue("DEBUGVALUE", spotLightAttachedToCameraCheckBox_->isChecked());
-
 	ssaoProgram_->setUniformValueArray("kernel", kernels_.data(), 64);
 
 
@@ -585,16 +531,16 @@ void Window::SSAOPass()
 
 void Window::FullscreenPass(const PassType & type)
 {
+	QOpenGLFramebufferObject::bindDefault();
+
+	// Clear buffers
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	if (type == PassType::FINAL)
 	{
 		FinalPass();
 		return;
 	}
-
-	QOpenGLFramebufferObject::bindDefault();
-
-	// Clear buffers
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	fullscreenProgram_->bind();
 
@@ -636,6 +582,63 @@ void Window::FullscreenPass(const PassType & type)
 	// Release VAO and shader program
 	fsQuadVAO_.release();
 	fullscreenProgram_->release();
+}
+
+void Window::FinalPass()
+{
+	finalProgram_->bind();
+
+	fsQuadVAO_.bind();
+
+	// Prepare textures
+	{
+		finalProgram_->setUniformValue("positionTexture", 0);
+		finalProgram_->setUniformValue("albedoTexture", 1);
+		finalProgram_->setUniformValue("normalsTexture", 2);
+		finalProgram_->setUniformValue("ssaoTexture", 3);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, gbufferFBO_->position());
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, gbufferFBO_->albedo());
+
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, gbufferFBO_->normals());
+
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, blurFBO_->albedo());
+
+		glActiveTexture(GL_TEXTURE0);
+	}
+
+	// Set uniforms
+	{
+		finalProgram_->setUniformValue("viewDir", camera_->GetViewDirection());
+
+		// Directional Light
+		finalProgram_->setUniformValue("directionalLight.direction", directionalLightDirectionSpinBox_->getValue());
+
+		finalProgram_->setUniformValue("directionalLight.color", directionalLightColorSpinBox_->getValue());
+		finalProgram_->setUniformValue("directionalLight.specularStrength", float(directionalLightSpecularCoefficientSpinBox_->value()));
+
+		// Spot Light
+		finalProgram_->setUniformValue("spotLight.position", camera_->GetViewPosition());
+		finalProgram_->setUniformValue("spotLight.direction", camera_->GetViewDirection());
+
+		finalProgram_->setUniformValue("spotLight.cutOff", float(qCos(qDegreesToRadians(spotLightCutOffSpinBox_->value()))));
+		finalProgram_->setUniformValue("spotLight.outerCutOff", float(qCos(qDegreesToRadians(spotLightOuterCutOffSpinBox_->value()))));
+
+		finalProgram_->setUniformValue("spotLight.color", spotLightColorSpinBox_->getValue());
+		finalProgram_->setUniformValue("spotLight.specularStrength", float(spotLightSpecularCoefficientSpinBox_->value()));
+	}
+
+	// Draw
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, nullptr);
+
+	// Release VAO and shader program
+	fsQuadVAO_.release();
+	finalProgram_->release();
 }
 
 void Window::BlurPass()

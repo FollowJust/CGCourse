@@ -7,15 +7,15 @@
         <file>Textures/voronoi.png</file>
     </qresource>
     <qresource prefix="/">
-        <file>Shaders/diffuse.fs</file>
-        <file>Shaders/diffuse.vs</file>
 		<file>Shaders/gbuffer.fs</file>
         <file>Shaders/gbuffer.vs</file>	
-		<file>Shaders/fullscreen.fs</file>
-        <file>Shaders/fullscreen.vs</file>	
-		<file>Shaders/blur.fs</file>
-        <file>Shaders/blur.vs</file>
 	    <file>Shaders/ssao.fs</file>
         <file>Shaders/ssao.vs</file>
-    </qresource>
+		<file>Shaders/blur.fs</file>
+        <file>Shaders/blur.vs</file>
+		<file>Shaders/fullscreen.fs</file>
+        <file>Shaders/fullscreen.vs</file>
+		<file>Shaders/final.fs</file>
+		<file>Shaders/final.vs</file>
+	</qresource>
 </RCC>

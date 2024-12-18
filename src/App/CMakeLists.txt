@@ -7,14 +7,16 @@ set(SRCS
     Model.cpp
     Model.h
 
-    Shaders/diffuse.fs
-    Shaders/diffuse.vs
     Shaders/gbuffer.fs
     Shaders/gbuffer.vs
-    Shaders/fullscreen.fs
-    Shaders/fullscreen.vs
     Shaders/ssao.fs
     Shaders/ssao.vs
+    Shaders/blur.fs
+    Shaders/blur.vs
+    Shaders/fullscreen.fs
+    Shaders/fullscreen.vs
+    Shaders/final.fs
+    Shaders/final.vs
     Textures/voronoi.png
     Models/Duck.glb
     Models/DamagedHelmet.glb

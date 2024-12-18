@@ -5,7 +5,6 @@ struct DirectionalLight
 	vec3 direction;
 
 	vec3 color;
-	float ambientStrength;
 	float specularStrength;
 };
 
@@ -17,18 +16,18 @@ struct SpotLight
     float outerCutOff;
 
 	vec3 color;
-	float ambientStrength;
 	float specularStrength;
 };
 
+uniform sampler2D positionTexture;
 uniform sampler2D albedoTexture;
+uniform sampler2D normalsTexture;
+uniform sampler2D ssaoTexture;
+
 uniform DirectionalLight directionalLight;
 uniform SpotLight spotLight;
 uniform vec3 viewDir;
 
-
-in vec3 Pos;
-in vec3 Normal;
 in vec2 UV;
 
 out vec4 FragColor;
@@ -44,7 +43,8 @@ vec3 CalculateDirectionalLighting(DirectionalLight light, vec3 normal, vec3 view
     vec3 reflectDir = reflect(-lightDir, normal);
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
 
-    return light.color * (albedo * (light.ambientStrength + diff) + light.specularStrength * spec);
+    float ambientStrength = texture(ssaoTexture, UV).r;
+    return light.color * (albedo * (ambientStrength + diff) + light.specularStrength * spec);
 }
 
 vec3 CalculateSpotLighting(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir, vec3 albedo)
@@ -67,15 +67,21 @@ vec3 CalculateSpotLighting(SpotLight light, vec3 normal, vec3 fragPos, vec3 view
     float epsilon = light.cutOff - light.outerCutOff;
     float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
 
-    return attenuation * intensity * light.color * (albedo * (light.ambientStrength + diff) + light.specularStrength * spec);
+    float ambientStrength = texture(ssaoTexture, UV).r;
+    return attenuation * intensity * light.color * (albedo * (ambientStrength + diff) + light.specularStrength * spec);
 }
 
 void main()
 {
+    vec3 pos = texture(positionTexture, UV).rgb;
 	vec3 albedo = texture(albedoTexture, UV).rgb;
+    vec3 normal = texture(normalsTexture, UV).rgb;
 
-	vec3 directionalLightResult = CalculateDirectionalLighting(directionalLight, Normal, viewDir, albedo);
-	vec3 spotLightResult = CalculateSpotLighting(spotLight, Normal, Pos, viewDir, albedo);
+    FragColor = vec4(pos, 1.0f);
+    return;
+
+	vec3 directionalLightResult = CalculateDirectionalLighting(directionalLight, normal, viewDir, albedo);
+	vec3 spotLightResult = CalculateSpotLighting(spotLight, normal, pos, viewDir, albedo);
 
     FragColor = vec4(directionalLightResult + spotLightResult, 1.0);
 }
