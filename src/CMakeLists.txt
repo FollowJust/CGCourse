@@ -10,6 +10,7 @@ set(SRCS
     rtweekend.h
     sphere.h
     vec3.h
+    triangle.h
 )
 
 add_executable(raytracing ${SRCS})
